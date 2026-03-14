@@ -117,15 +117,15 @@ export default function AgentsPage() {
                 <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
                   <Button
                     variant="ghost"
-                    className="w-full justify-between gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
+                    className="w-full justify-between gap-3 px-3 flex-grow"
                     onClick={() => setSelectedAgentId(agent.id)}
                   >
                     <span className="truncate text-left">{agent.name}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex flex-col items-center gap-1 w-12">
-                          <span className="text-xs font-mono -mb-1">{agent.tokenUsage}%</span>
-                          <Progress value={agent.tokenUsage} className="h-1 w-full" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono">{agent.tokenUsage}%</span>
+                          <Progress value={agent.tokenUsage} className="h-1 w-12" />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="right">
@@ -180,7 +180,7 @@ export default function AgentsPage() {
             </TabsList>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="outline">Discard</Button>
-              <Button><Save className="mr-2 h-4 w-4" /> Save Agent</Button>
+              <Button className="transition-shadow duration-300 ease-in-out hover:shadow-lg hover:shadow-primary/40"><Save className="mr-2 h-4 w-4" /> Save Agent</Button>
             </div>
           </div>
 
