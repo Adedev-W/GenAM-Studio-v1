@@ -1,6 +1,7 @@
 import AgentList from "@/components/dashboard/agent-list";
 import OverviewStats from "@/components/dashboard/overview-stats";
 import TelemetryCharts from "@/components/dashboard/telemetry-charts";
+import SimulationControl from "@/components/dashboard/simulation-control";
 
 export default function DashboardPage() {
   return (
@@ -10,7 +11,10 @@ export default function DashboardPage() {
         <div className="xl:col-span-2">
           <AgentList />
         </div>
-        <TelemetryCharts />
+        <div className="grid auto-rows-max items-start gap-4 md:gap-8">
+          <TelemetryCharts />
+          <SimulationControl />
+        </div>
       </div>
     </div>
   );
