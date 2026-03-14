@@ -11,6 +11,7 @@ export const agents: Agent[] = [
     cpuUsage: 78,
     memoryUsage: 65,
     networkIO: { in: 120, out: 45 },
+    tokenUsage: 60,
   },
   {
     id: "agent-002",
@@ -22,6 +23,7 @@ export const agents: Agent[] = [
     cpuUsage: 55,
     memoryUsage: 80,
     networkIO: { in: 800, out: 150 },
+    tokenUsage: 82,
   },
   {
     id: "agent-003",
@@ -33,6 +35,7 @@ export const agents: Agent[] = [
     cpuUsage: 5,
     memoryUsage: 20,
     networkIO: { in: 2, out: 1 },
+    tokenUsage: 15,
   },
   {
     id: "agent-004",
@@ -44,6 +47,7 @@ export const agents: Agent[] = [
     cpuUsage: 95,
     memoryUsage: 92,
     networkIO: { in: 10, out: 5 },
+    tokenUsage: 98,
   },
   {
     id: "agent-005",
@@ -55,6 +59,7 @@ export const agents: Agent[] = [
     cpuUsage: 30,
     memoryUsage: 40,
     networkIO: { in: 250, out: 300 },
+    tokenUsage: 35,
   },
     {
     id: "agent-006",
@@ -66,6 +71,7 @@ export const agents: Agent[] = [
     cpuUsage: 0,
     memoryUsage: 10,
     networkIO: { in: 0, out: 0 },
+    tokenUsage: 5,
   },
 ];
 

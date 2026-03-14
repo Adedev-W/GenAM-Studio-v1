@@ -10,6 +10,7 @@ export interface Agent {
   cpuUsage: number; // 0-100
   memoryUsage: number; // 0-100
   networkIO: { in: number; out: number }; // KB/s
+  tokenUsage: number; // 0-100
 }
 
 export interface PolicyRule {

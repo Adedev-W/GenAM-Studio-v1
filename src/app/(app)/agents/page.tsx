@@ -40,6 +40,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
+import {
   Badge,
   GitBranch,
   KeyRound,
@@ -72,11 +79,11 @@ const tools = [
   { id: "tool-git", name: "Data Analysis", description: "Provides capabilities for analyzing data sets and generating insights.", icon: GitBranch },
 ];
 
-const statusColors: Record<AgentStatus, string> = {
-  running: "text-green-500",
-  idle: "text-blue-500",
-  errored: "text-red-500",
-  stopped: "text-gray-500",
+const statusStyles: Record<AgentStatus, string> = {
+  running: "bg-green-500/20 text-green-400 border-green-500/30",
+  idle: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  errored: "bg-red-500/20 text-red-400 border-red-500/30",
+  stopped: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
 export default function AgentsPage() {
@@ -99,43 +106,56 @@ export default function AgentsPage() {
             </div>
           </CardHeader>
           <CardContent className="grid gap-1">
-            {agentData.map((agent) => (
-              <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
-                  onClick={() => setSelectedAgentId(agent.id)}
-                >
-                  <Circle className={cn("h-3 w-3 fill-current", statusColors[agent.status])} />
-                  <span className="truncate flex-1 text-left">{agent.name}</span>
-                  <Badge variant="outline" className="capitalize">{agent.status}</Badge>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 mr-1">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Agent options</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-red-500 focus:bg-destructive/10 focus:text-red-500">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
+            <TooltipProvider>
+              {agentData.map((agent) => (
+                <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
+                    onClick={() => setSelectedAgentId(agent.id)}
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center gap-1 w-12">
+                          <span className="text-xs font-mono -mb-1">{agent.tokenUsage}%</span>
+                          <Progress value={agent.tokenUsage} className="h-1 w-full" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Token Usage: {agent.tokenUsage}%</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <span className="truncate flex-1 text-left">{agent.name}</span>
+                    <Badge variant="outline" className={cn("capitalize", statusStyles[agent.status])}>{agent.status}</Badge>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 mr-1">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Agent options</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-red-500 focus:bg-destructive/10 focus:text-red-500">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
+            </TooltipProvider>
           </CardContent>
         </Card>
       </div>
