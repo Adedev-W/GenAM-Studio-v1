@@ -114,10 +114,13 @@ export default function AgentsPage() {
           <CardContent className="grid gap-1">
             <TooltipProvider>
               {agentData.map((agent) => (
-                <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
+                <div key={agent.id} className={cn("flex items-center rounded-md")}>
                   <Button
                     variant="ghost"
-                    className="w-full justify-between gap-3 px-3 flex-grow"
+                    className={cn(
+                      "w-full justify-between gap-3 px-3 flex-grow",
+                      selectedAgentId === agent.id && "text-primary hover:text-primary"
+                    )}
                     onClick={() => setSelectedAgentId(agent.id)}
                   >
                     <span className="truncate text-left">{agent.name}</span>
