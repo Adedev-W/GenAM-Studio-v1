@@ -85,6 +85,13 @@ const statusDotStyles: Record<AgentStatus, string> = {
   stopped: "bg-gray-500",
 };
 
+const statusTextStyles: Record<AgentStatus, string> = {
+  running: "text-green-500",
+  idle: "text-blue-500",
+  errored: "text-red-500",
+  stopped: "text-gray-500",
+};
+
 export default function AgentsPage() {
   const [selectedAgentId, setSelectedAgentId] = React.useState(agentData[0].id);
   const selectedAgent = agentData.find(agent => agent.id === selectedAgentId) || agentData[0];
@@ -124,7 +131,7 @@ export default function AgentsPage() {
                       <TooltipContent side="right">
                         <div className="flex items-center gap-2">
                           <div className={cn("h-2 w-2 rounded-full", statusDotStyles[agent.status])} />
-                          <span className="font-medium capitalize">{agent.status}</span>
+                          <span className={cn("font-medium capitalize", statusTextStyles[agent.status])}>{agent.status}</span>
                           <div className="flex-1 border-t border-dashed mx-2 border-border"></div>
                           <span className="font-mono text-sm">{agent.tokenCount} Tokens</span>
                         </div>
