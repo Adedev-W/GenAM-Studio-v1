@@ -1,6 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { generatePolicySuggestions } from "@/app/actions";
 import { Bot, Sparkles, Wand2, ArrowRight } from "lucide-react";
 
@@ -33,7 +34,7 @@ function SubmitButton() {
 }
 
 export default function PolicyDesigner() {
-  const [state, formAction] = useFormState(generatePolicySuggestions, initialState);
+  const [state, formAction] = useActionState(generatePolicySuggestions, initialState);
 
   return (
     <Card className="sticky top-20">
