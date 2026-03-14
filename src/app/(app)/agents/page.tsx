@@ -58,7 +58,6 @@ import {
   ToyBrick,
   Wrench,
   ChevronDown,
-  Circle,
   MoreHorizontal,
   Copy,
   Trash2,
@@ -111,9 +110,10 @@ export default function AgentsPage() {
                 <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
+                    className="w-full justify-between gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
                     onClick={() => setSelectedAgentId(agent.id)}
                   >
+                    <span className="truncate text-left">{agent.name}</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="flex flex-col items-center gap-1 w-12">
@@ -123,11 +123,9 @@ export default function AgentsPage() {
                       </TooltipTrigger>
                       <TooltipContent side="right">
                         <p>Token Usage: {agent.tokenUsage}%</p>
+                        <p className="capitalize">Status: {agent.status}</p>
                       </TooltipContent>
                     </Tooltip>
-                    
-                    <span className="truncate flex-1 text-left">{agent.name}</span>
-                    <Badge variant="outline" className={cn("capitalize", statusStyles[agent.status])}>{agent.status}</Badge>
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
