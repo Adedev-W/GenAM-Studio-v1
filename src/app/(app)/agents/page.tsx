@@ -126,7 +126,7 @@ export default function AgentsPage() {
                           <div className={cn("h-2 w-2 rounded-full", statusDotStyles[agent.status])} />
                           <span className="font-medium capitalize">{agent.status}</span>
                           <div className="flex-1 border-t border-dashed mx-2 border-border"></div>
-                          <span className="font-mono text-sm">{agent.tokenUsage}%</span>
+                          <span className="font-mono text-sm">{agent.tokenCount} Tokens</span>
                         </div>
                       </TooltipContent>
                     </Tooltip>

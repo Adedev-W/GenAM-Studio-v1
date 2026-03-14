@@ -11,6 +11,8 @@ export interface Agent {
   memoryUsage: number; // 0-100
   networkIO: { in: number; out: number }; // KB/s
   tokenUsage: number; // 0-100
+  tokenCount: number;
+  tokenLimit: number;
 }
 
 export interface PolicyRule {
