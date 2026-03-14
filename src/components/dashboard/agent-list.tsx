@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { agents } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import type { AgentStatus } from "@/lib/types";
@@ -60,7 +61,7 @@ export default function AgentList() {
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Objective</TableHead>
-              <TableHead className="hidden md:table-cell">CPU/Mem</TableHead>
+              <TableHead className="hidden md:table-cell w-[180px]">CPU / Mem</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -84,7 +85,18 @@ export default function AgentList() {
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
-                  {agent.cpuUsage}% / {agent.memoryUsage}%
+                  <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">CPU</span>
+                          <Progress value={agent.cpuUsage} className="h-2 w-full" />
+                          <span className="text-xs w-8 text-right font-mono">{agent.cpuUsage}%</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Mem</span>
+                          <Progress value={agent.memoryUsage} className="h-2 w-full" />
+                          <span className="text-xs w-8 text-right font-mono">{agent.memoryUsage}%</span>
+                      </div>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
