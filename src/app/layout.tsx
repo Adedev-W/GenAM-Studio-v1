@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: 'AgentPulse',
-  description: 'Dasbor pemantauan dan manajemen untuk agen otonom.',
+  description: 'A monitoring and management dashboard for autonomous agents.',
 };
 
 export default function RootLayout({

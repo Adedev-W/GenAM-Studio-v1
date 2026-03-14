@@ -39,15 +39,15 @@ const policySuggestionPrompt = ai.definePrompt({
   name: 'policySuggestionPrompt',
   input: { schema: AidPolicyCreationInputSchema },
   output: { schema: AidPolicyCreationOutputSchema },
-  prompt: `Anda adalah asisten AI yang dirancang untuk membantu membuat kebijakan proaktif untuk sistem pemantauan agen otonom.
-Berdasarkan deskripsi yang diberikan tentang perilaku yang diinginkan atau pola historis, buatlah daftar aturan kebijakan.
-Setiap aturan harus memiliki 'condition' (apa yang memicu aturan) dan 'action' (apa yang terjadi ketika terpicu).
-Secara opsional, sertakan 'priority' (angka lebih rendah berarti prioritas lebih tinggi, default 100) dan 'description' (penjelasan singkat tentang aturan).
+  prompt: `You are an AI assistant designed to help create proactive policies for an autonomous agent monitoring system.
+Based on the provided description of desired behavior or historical patterns, generate a list of policy rules.
+Each rule must have a 'condition' (what triggers the rule) and an 'action' (what happens when it's triggered).
+Optionally, include a 'priority' (lower number is higher priority, default 100) and a 'description' (a brief explanation of the rule).
 
-Gunakan metrik yang tersedia: CPU_USAGE, MEMORY_USAGE, NETWORK_IO_IN, NETWORK_IO_OUT, TASK_THROUGHPUT, SUCCESS_RATE, TASK_QUEUE_LENGTH, AGENT_STATUS (running, idle, errored).
-Tindakan yang tersedia meliputi: SCALE_AGENT_UP, SCALE_AGENT_DOWN, PAUSE_AGENT, RESUME_AGENT, RESTART_AGENT, SEND_ALERT_TO_SLACK, SEND_ALERT_TO_EMAIL.
+Available metrics: CPU_USAGE, MEMORY_USAGE, NETWORK_IO_IN, NETWORK_IO_OUT, TASK_THROUGHPUT, SUCCESS_RATE, TASK_QUEUE_LENGTH, AGENT_STATUS (running, idle, errored).
+Available actions include: SCALE_AGENT_UP, SCALE_AGENT_DOWN, PAUSE_AGENT, RESUME_AGENT, RESTART_AGENT, SEND_ALERT_TO_SLACK, SEND_ALERT_TO_EMAIL.
 
-Deskripsi: {{{description}}}`,
+Description: {{{description}}}`,
 });
 
 // Flow definition

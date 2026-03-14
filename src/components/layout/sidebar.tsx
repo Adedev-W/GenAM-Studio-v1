@@ -8,6 +8,7 @@ import {
   Home,
   FileClock,
   Settings,
+  Shapes,
 } from "lucide-react";
 
 import { AppLogo } from "@/components/icons";
@@ -21,6 +22,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
+  { href: "/agents", icon: Shapes, label: "Agents" },
   { href: "/policies", icon: BrainCircuit, label: "Policies" },
   { href: "/alerts", icon: Bell, label: "Alerts" },
   { href: "/audit", icon: FileClock, label: "Audit Trail" },

@@ -9,6 +9,7 @@ import {
   Home,
   PanelLeft,
   Settings,
+  Shapes,
   User,
 } from "lucide-react";
 import {
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
+  { href: "/agents", icon: Shapes, label: "Agents" },
   { href: "/policies", icon: BrainCircuit, label: "Policies" },
   { href: "/alerts", icon: Bell, label: "Alerts" },
   { href: "/audit", icon: FileClock, label: "Audit Trail" },

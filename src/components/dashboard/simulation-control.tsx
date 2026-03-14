@@ -14,16 +14,16 @@ export default function SimulationControl() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bot className="h-6 w-6 text-primary" />
-          Kontrol Simulasi
+          Simulation Control
         </CardTitle>
         <CardDescription>
-          Sesuaikan parameter simulasi secara real-time.
+          Adjust simulation parameters in real-time.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="speed">Kecepatan Simulasi</Label>
+            <Label htmlFor="speed">Simulation Speed</Label>
             <div className="flex items-center gap-4">
               <Slider
                 id="speed"
