@@ -78,11 +78,11 @@ const tools = [
   { id: "tool-git", name: "Data Analysis", description: "Provides capabilities for analyzing data sets and generating insights.", icon: GitBranch },
 ];
 
-const statusStyles: Record<AgentStatus, string> = {
-  running: "bg-green-500/20 text-green-400 border-green-500/30",
-  idle: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  errored: "bg-red-500/20 text-red-400 border-red-500/30",
-  stopped: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+const statusDotStyles: Record<AgentStatus, string> = {
+  running: "bg-green-500",
+  idle: "bg-blue-500",
+  errored: "bg-red-500",
+  stopped: "bg-gray-500",
 };
 
 export default function AgentsPage() {
@@ -122,8 +122,12 @@ export default function AgentsPage() {
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="right">
-                        <p>Token Usage: {agent.tokenUsage}%</p>
-                        <p className="capitalize">Status: {agent.status}</p>
+                        <div className="flex items-center gap-2">
+                          <div className={cn("h-2 w-2 rounded-full", statusDotStyles[agent.status])} />
+                          <span className="font-medium capitalize">{agent.status}</span>
+                          <div className="flex-1 border-t border-dashed mx-2 border-border"></div>
+                          <span className="font-mono text-sm">{agent.tokenUsage}%</span>
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </Button>
