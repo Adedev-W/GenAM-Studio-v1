@@ -45,7 +45,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-}
+} from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import {
   Badge,
@@ -381,3 +381,5 @@ export default function AgentsPage() {
     </div>
   );
 }
+
+    
