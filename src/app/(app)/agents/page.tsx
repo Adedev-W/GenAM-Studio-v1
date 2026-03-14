@@ -32,6 +32,14 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Badge,
   GitBranch,
   KeyRound,
@@ -44,6 +52,9 @@ import {
   Wrench,
   ChevronDown,
   Circle,
+  MoreHorizontal,
+  Copy,
+  Trash2,
 } from "lucide-react";
 import { agents as agentData } from "@/lib/data";
 import type { AgentStatus } from "@/lib/types";
@@ -89,16 +100,41 @@ export default function AgentsPage() {
           </CardHeader>
           <CardContent className="grid gap-1">
             {agentData.map((agent) => (
-              <Button
-                key={agent.id}
-                variant={selectedAgentId === agent.id ? "secondary" : "ghost"}
-                className="w-full justify-start gap-3 px-3"
-                onClick={() => setSelectedAgentId(agent.id)}
-              >
-                <Circle className={cn("h-3 w-3 fill-current", statusColors[agent.status])} />
-                <span className="truncate flex-1 text-left">{agent.name}</span>
-                <Badge variant="outline" className="capitalize">{agent.status}</Badge>
-              </Button>
+              <div key={agent.id} className={cn("flex items-center rounded-md", selectedAgentId === agent.id && "bg-secondary")}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 px-3 flex-grow bg-transparent hover:bg-transparent"
+                  onClick={() => setSelectedAgentId(agent.id)}
+                >
+                  <Circle className={cn("h-3 w-3 fill-current", statusColors[agent.status])} />
+                  <span className="truncate flex-1 text-left">{agent.name}</span>
+                  <Badge variant="outline" className="capitalize">{agent.status}</Badge>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 mr-1">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Agent options</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-red-500 focus:bg-destructive/10 focus:text-red-500">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ))}
           </CardContent>
         </Card>
