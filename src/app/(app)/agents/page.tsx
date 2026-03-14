@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -44,7 +45,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+}
 import { Progress } from "@/components/ui/progress";
 import {
   Badge,
@@ -118,7 +119,7 @@ export default function AgentsPage() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "w-full justify-between gap-3 px-3 flex-grow",
+                      "w-full justify-between gap-3 px-3 flex-grow hover:bg-transparent",
                       selectedAgentId === agent.id && "text-primary hover:text-primary"
                     )}
                     onClick={() => setSelectedAgentId(agent.id)}
@@ -217,7 +218,7 @@ export default function AgentsPage() {
                 <div className="grid md:grid-cols-2 gap-6 items-start">
                   <div className="space-y-2">
                     <Label>System Prompt</Label>
-                    <Textarea placeholder="Define the agent's core instructions and persona here..." rows={12} 
+                    <Textarea placeholder="Define the agent's core instructions and persona here..." rows={12}
                       defaultValue="You are a helpful AI assistant specialized in data analysis. Your goal is to identify trends and anomalies in time-series data. Respond concisely and provide clear, actionable insights. Do not speculate on data you have not seen."/>
                   </div>
                   <div className="space-y-6">
@@ -293,7 +294,7 @@ export default function AgentsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="tools">
             <Card>
               <CardHeader>
@@ -324,7 +325,7 @@ export default function AgentsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="models">
             <Card>
               <CardHeader>
