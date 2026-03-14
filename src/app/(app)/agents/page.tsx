@@ -87,10 +87,10 @@ const statusDotStyles: Record<AgentStatus, string> = {
 };
 
 const statusTextStyles: Record<AgentStatus, string> = {
-  running: "text-green-500",
-  idle: "text-blue-500",
-  errored: "text-red-500",
-  stopped: "text-gray-500",
+  running: "text-green-400",
+  idle: "text-blue-400",
+  errored: "text-red-400",
+  stopped: "text-gray-400",
 };
 
 export default function AgentsPage() {
@@ -108,7 +108,7 @@ export default function AgentsPage() {
                 <CardDescription>Select an agent to configure</CardDescription>
               </div>
               <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" /> New
+                <PlusCircle className="mr-2 h-4 w-4 text-primary" /> New
               </Button>
             </div>
           </CardHeader>
@@ -119,8 +119,8 @@ export default function AgentsPage() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "w-full justify-between gap-3 px-3 flex-grow hover:bg-transparent hover:text-foreground",
-                      selectedAgentId === agent.id && "text-primary hover:text-primary"
+                      "w-full justify-between gap-3 px-3 flex-grow hover:bg-transparent",
+                      selectedAgentId === agent.id ? "text-primary hover:text-primary" : "text-foreground hover:text-foreground"
                     )}
                     onClick={() => setSelectedAgentId(agent.id)}
                   >
@@ -174,7 +174,7 @@ export default function AgentsPage() {
       </div>
 
       <div className="lg:col-span-2">
-        <Tabs defaultValue="config" className="grid gap-6">
+        <Tabs defaultValue="config" className="grid gap-8">
           <div className="flex items-center">
             <TabsList>
               <TabsTrigger value="config"><Settings className="mr-2 h-4 w-4"/>Configuration</TabsTrigger>
@@ -381,3 +381,5 @@ export default function AgentsPage() {
     </div>
   );
 }
+
+    
