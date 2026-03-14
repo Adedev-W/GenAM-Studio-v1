@@ -119,7 +119,7 @@ export default function AgentsPage() {
                   <Button
                     variant="ghost"
                     className={cn(
-                      "w-full justify-between gap-3 px-3 flex-grow hover:bg-transparent",
+                      "w-full justify-between gap-3 px-3 flex-grow hover:bg-transparent hover:text-foreground",
                       selectedAgentId === agent.id && "text-primary hover:text-primary"
                     )}
                     onClick={() => setSelectedAgentId(agent.id)}
@@ -381,5 +381,3 @@ export default function AgentsPage() {
     </div>
   );
 }
-
-    
