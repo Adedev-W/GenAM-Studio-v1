@@ -43,3 +43,24 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# claude code
+.claude/
+
+# mcp config (contains local tokens)
+.mcp.json
+
+# IDX (Project IDX / Google)
+.idx/
+
+# planning & docs (dev-only)
+
+docs/
+
+# supabase local
+supabase/
+
+# misc
+.modified
+apphosting.yaml
+

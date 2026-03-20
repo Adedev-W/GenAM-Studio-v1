@@ -1,7 +1,7 @@
-import AgentList from "@/components/dashboard/agent-list";
-import OverviewStats from "@/components/dashboard/overview-stats";
-import TelemetryCharts from "@/components/dashboard/telemetry-charts";
-import SimulationControl from "@/components/dashboard/simulation-control";
+import { AgentList } from "@/components/dashboard/agent-list";
+import { OverviewStats } from "@/components/dashboard/overview-stats";
+import { TelemetryCharts } from "@/components/dashboard/telemetry-charts";
+import { RecentOrders } from "@/components/dashboard/recent-orders";
 
 export default function DashboardPage() {
   return (
@@ -9,13 +9,11 @@ export default function DashboardPage() {
       <OverviewStats />
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <AgentList />
+          <RecentOrders />
         </div>
-        <div className="grid auto-rows-max items-start gap-4 md:gap-8">
-          <TelemetryCharts />
-          <SimulationControl />
-        </div>
+        <AgentList />
       </div>
+      <TelemetryCharts />
     </div>
   );
 }

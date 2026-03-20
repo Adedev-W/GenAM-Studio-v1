@@ -1,136 +1,90 @@
 "use client";
 
-import {
-  MoreHorizontal,
-  PlayCircle,
-  PauseCircle,
-  StopCircle,
-  RefreshCw,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Bot, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { agents } from "@/lib/data";
-import { cn } from "@/lib/utils";
-import type { AgentStatus } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/common/empty-state";
 
-const statusStyles: Record<AgentStatus, string> = {
-  running: "bg-green-500/20 text-green-400 border-green-500/30",
-  idle: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  errored: "bg-red-500/20 text-red-400 border-red-500/30",
-  stopped: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+interface Agent {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  updated_at: string;
+}
+
+const statusColors: Record<string, string> = {
+  active: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  inactive: "bg-muted/50 text-muted-foreground border-border/30",
+  draft: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  error: "bg-red-500/10 text-red-500 border-red-500/20",
 };
 
-export default function AgentList() {
+export function AgentList() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/agents?limit=5')
+      .then(r => r.json())
+      .then(data => setAgents(Array.isArray(data) ? data.slice(0, 5) : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Agents</CardTitle>
-        <CardDescription>
-          Manage and monitor your autonomous agents.
-        </CardDescription>
+    <Card className="border-border/50">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-semibold">Recent Agents</CardTitle>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/agents" className="text-xs text-muted-foreground">View all</Link>
+        </Button>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="hidden w-[100px] sm:table-cell">
-                Status
-              </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Objective</TableHead>
-              <TableHead className="hidden md:table-cell w-[180px]">CPU / Mem</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {agents.map((agent) => (
-              <TableRow key={agent.id}>
-                <TableCell className="hidden sm:table-cell">
-                  <Badge
-                    variant="outline"
-                    className={cn("capitalize", statusStyles[agent.status])}
-                  >
+        {loading ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => (
+              <div key={i} className="h-12 rounded-lg bg-muted/30 animate-pulse" />
+            ))}
+          </div>
+        ) : agents.length === 0 ? (
+          <EmptyState
+            icon={Bot}
+            title="No agents yet"
+            description="Create your first agent to get started"
+          >
+            <Button size="sm" asChild><Link href="/agents">Create Agent</Link></Button>
+          </EmptyState>
+        ) : (
+          <div className="space-y-2">
+            {agents.map(agent => (
+              <div key={agent.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{agent.name}</p>
+                    <p className="text-xs text-muted-foreground font-light">
+                      Updated {new Date(agent.updated_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs ${statusColors[agent.status] || statusColors.inactive}`}>
                     {agent.status}
                   </Badge>
-                </TableCell>
-                <TableCell className="font-medium">{agent.name}</TableCell>
-                <TableCell>
-                  <div className="w-48 truncate text-muted-foreground">
-                    {agent.currentObjective}
-                  </div>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">CPU</span>
-                          <Progress value={agent.cpuUsage} className="h-2 w-full" />
-                          <span className="text-xs w-8 text-right font-mono">{agent.cpuUsage}%</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Mem</span>
-                          <Progress value={agent.memoryUsage} className="h-2 w-full" />
-                          <span className="text-xs w-8 text-right font-mono">{agent.memoryUsage}%</span>
-                      </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <PlayCircle className="mr-2 h-4 w-4" />
-                        Start/Resume
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <PauseCircle className="mr-2 h-4 w-4" />
-                        Pause
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <StopCircle className="mr-2 h-4 w-4" />
-                        Stop
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-500">
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Restart
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
+                    <Link href={`/agents/${agent.id}`}><ExternalLink className="h-3.5 w-3.5" /></Link>
+                  </Button>
+                </div>
+              </div>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

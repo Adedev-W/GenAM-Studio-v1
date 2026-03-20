@@ -1,18 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bell } from "lucide-react";
+"use client";
+
+import { Bell, FileClock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/common/page-header";
+import { AlertsTab } from "@/components/alerts/alerts-tab";
+import { AuditTab } from "@/components/alerts/audit-tab";
 
 export default function AlertsPage() {
   return (
-    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm">
-      <div className="flex flex-col items-center gap-1 text-center">
-        <Bell className="h-16 w-16 text-muted-foreground/50" />
-        <h3 className="text-2xl font-bold tracking-tight">
-          Alerts & Notifications
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          This section will display active alerts and manage notification rules.
-        </p>
-      </div>
-    </div>
+    <Tabs defaultValue="alerts" className="space-y-6">
+      <PageHeader title="Alerts & Audit" description="Monitor alerts dan audit log workspace">
+        <TabsList>
+          <TabsTrigger value="alerts" className="gap-1.5">
+            <Bell className="h-3.5 w-3.5" /> Alerts
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="gap-1.5">
+            <FileClock className="h-3.5 w-3.5" /> Audit
+          </TabsTrigger>
+        </TabsList>
+      </PageHeader>
+
+      <TabsContent value="alerts"><AlertsTab /></TabsContent>
+      <TabsContent value="audit"><AuditTab /></TabsContent>
+    </Tabs>
   );
 }
