@@ -103,7 +103,7 @@ export default function CustomersPage() {
             <DialogHeader>
               <DialogTitle>Tambah Pelanggan</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 space-x-2 pt-2 mb-2">
               <div className="space-y-1">
                 <Label className="text-xs">Nama *</Label>
                 <Input
@@ -112,7 +112,7 @@ export default function CustomersPage() {
                   onChange={(e) => setNewContact((p) => ({ ...p, display_name: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Email</Label>
                   <Input
@@ -199,7 +199,7 @@ export default function CustomersPage() {
       ) : (
         <div className="space-y-2">
           {contacts.map((contact) => (
-            <Link key={contact.id} href={`/customers/${contact.id}`}>
+            <Link key={contact.id} href={`/customers/${contact.id}`} className="block">
               <Card className="border-border/50 hover:border-border hover:bg-muted/30 transition-colors cursor-pointer">
                 <CardContent className="p-4 flex items-center gap-3">
                   {/* Avatar */}

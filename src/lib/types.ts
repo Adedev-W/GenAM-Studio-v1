@@ -1,17 +1,35 @@
 // ==================== Core / Auth ====================
-export interface Workspace {
+export interface Business {
   id: string;
   name: string;
   slug: string;
   plan: 'free' | 'pro' | 'enterprise';
   settings: Record<string, any>;
+  logo_url: string | null;
+  industry: string | null;
+  description: string | null;
+  business_type: string | null;
+  target_market: string | null;
+  channels: string[] | null;
+  tone: string | null;
   created_at: string;
   updated_at: string;
 }
 
+/** @deprecated Use Business instead */
+export type Workspace = Business;
+
+export interface BusinessMember {
+  id: string;
+  business_id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member';
+  joined_at: string;
+}
+
 export interface Profile {
   id: string;
-  workspace_id: string;
+  active_business_id: string;
   display_name: string;
   avatar_url: string | null;
   role: 'owner' | 'admin' | 'member' | 'viewer';
@@ -26,7 +44,7 @@ export type Environment = 'dev' | 'staging' | 'prod';
 
 export interface Agent {
   id: string;
-  workspace_id: string;
+  business_id: string;
   name: string;
   description: string | null;
   slug: string | null;
@@ -57,7 +75,7 @@ export interface AgentVersion {
 
 export interface AgentTemplate {
   id: string;
-  workspace_id: string | null;
+  business_id: string | null;
   name: string;
   description: string | null;
   category: string | null;
@@ -67,11 +85,17 @@ export interface AgentTemplate {
   updated_at: string;
 }
 
+export interface AgentProduct {
+  agent_id: string;
+  product_id: string;
+  created_at: string;
+}
+
 // ==================== Prompts & Workflows ====================
 export interface Prompt {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   name: string;
   content: string;
   version: number;
@@ -99,7 +123,7 @@ export interface PromptTest {
 export interface Workflow {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   name: string;
   description: string | null;
   steps: WorkflowStep[];
@@ -131,11 +155,19 @@ export interface WorkflowExecution {
   created_at: string;
 }
 
+// ==================== Chat / Suggested Actions ====================
+export interface SuggestedAction {
+  label: string;
+  value?: string;
+  type?: 'reply' | 'order' | 'link';
+  url?: string;
+}
+
 // ==================== Monitoring ====================
 export interface Conversation {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   external_user_id: string | null;
   channel: string | null;
   metadata: Record<string, any>;
@@ -160,7 +192,7 @@ export interface Message {
 export interface UsageMetric {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   timestamp: string;
   requests: number;
   tokens_prompt: number;
@@ -175,7 +207,7 @@ export interface UsageMetric {
 
 export interface AlertRule {
   id: string;
-  workspace_id: string;
+  business_id: string;
   agent_id: string | null;
   name: string;
   metric: string;
@@ -192,7 +224,7 @@ export type Severity = 'critical' | 'high' | 'medium' | 'low';
 
 export interface Alert {
   id: string;
-  workspace_id: string;
+  business_id: string;
   agent_id: string | null;
   rule_name: string | null;
   condition: Record<string, any> | null;
@@ -207,7 +239,7 @@ export interface Alert {
 export interface ErrorLog {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   error_type: string | null;
   message: string | null;
   stack_trace: string | null;
@@ -218,7 +250,7 @@ export interface ErrorLog {
 // ==================== Security & Governance ====================
 export interface AuditLog {
   id: string;
-  workspace_id: string;
+  business_id: string;
   actor_id: string | null;
   action: string;
   resource_type: string;
@@ -232,7 +264,7 @@ export interface AuditLog {
 
 export interface GovernancePolicy {
   id: string;
-  workspace_id: string;
+  business_id: string;
   name: string;
   description: string | null;
   policy_type: 'content_filter' | 'data_masking' | 'rate_limit' | 'access_control';
@@ -245,7 +277,7 @@ export interface GovernancePolicy {
 
 export interface ComplianceRecord {
   id: string;
-  workspace_id: string;
+  business_id: string;
   regulation: string;
   status: 'compliant' | 'non_compliant' | 'in_review';
   evidence: Record<string, any>;
@@ -258,7 +290,7 @@ export interface ComplianceRecord {
 // ==================== Integrations ====================
 export interface Integration {
   id: string;
-  workspace_id: string;
+  business_id: string;
   name: string;
   type: 'api' | 'database' | 'webhook' | 'plugin';
   config: Record<string, any>;
@@ -270,7 +302,7 @@ export interface Integration {
 
 export interface KnowledgeBase {
   id: string;
-  workspace_id: string;
+  business_id: string;
   name: string;
   description: string | null;
   source_type: 'upload' | 'url' | 'database';
@@ -296,7 +328,7 @@ export interface KnowledgeDocument {
 
 export interface Webhook {
   id: string;
-  workspace_id: string;
+  business_id: string;
   url: string;
   events: string[];
   secret: string | null;
@@ -309,7 +341,7 @@ export interface Webhook {
 // ==================== Cost ====================
 export interface Budget {
   id: string;
-  workspace_id: string;
+  business_id: string;
   agent_id: string | null;
   monthly_limit_usd: number;
   alert_threshold_pct: number;
@@ -322,7 +354,7 @@ export interface Budget {
 
 export interface CostEntry {
   id: string;
-  workspace_id: string;
+  business_id: string;
   agent_id: string | null;
   model_id: string | null;
   tokens_prompt: number;
@@ -336,7 +368,7 @@ export interface CostEntry {
 export interface Evaluation {
   id: string;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   name: string;
   eval_type: 'benchmark' | 'human_review' | 'automated';
   dataset: any[];
@@ -352,7 +384,7 @@ export interface Feedback {
   id: string;
   message_id: string | null;
   agent_id: string | null;
-  workspace_id: string;
+  business_id: string;
   rating: number;
   comment: string | null;
   tags: string[];
@@ -362,7 +394,7 @@ export interface Feedback {
 
 export interface Comment {
   id: string;
-  workspace_id: string;
+  business_id: string;
   resource_type: string;
   resource_id: string;
   author_id: string | null;
@@ -376,7 +408,7 @@ export interface Comment {
 
 export interface Task {
   id: string;
-  workspace_id: string;
+  business_id: string;
   title: string;
   description: string | null;
   assignee_id: string | null;
@@ -393,7 +425,7 @@ export interface Task {
 // ==================== Canvas ====================
 export interface CanvasLayout {
   id: string;
-  workspace_id: string;
+  business_id: string;
   agent_id: string | null;
   name: string;
   description: string | null;
@@ -449,60 +481,52 @@ export interface CanvasDataBinding {
   updated_at: string;
 }
 
-// ==================== Legacy types (kept for backward compat) ====================
-export interface PolicyRule {
-  id: string;
-  condition: string;
-  action: string;
-  priority: number;
-  description: string;
-  createdBy: 'user' | 'ai';
-}
+// ==================== Products ====================
+export type StockType = 'unlimited' | 'limited' | 'made_to_order' | 'by_schedule';
 
-export type TimeSeriesData = {
-  time: string;
-  cpu: number;
-  memory: number;
-}
-
-export type ThreatSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
-export type EventStatus = 'active' | 'investigating' | 'mitigated' | 'resolved';
-
-export interface SecurityMetricCard {
-  label: string;
-  value: number;
-  delta: number;
-  icon: string;
-}
-
-export interface ThreatTimeSeriesPoint {
-  time: string;
-  alerts: number;
-  threats: number;
-  incidents: number;
-}
-
-export interface ThreatCategory {
+export interface ProductVariant {
   name: string;
-  count: number;
-  percentage: number;
+  options: string[];
+  prices: number[];
 }
 
-export interface SecurityEvent {
+export interface ProductOption {
+  name: string;
+  price: number;
+}
+
+export interface Product {
   id: string;
-  title: string;
-  description: string;
-  severity: ThreatSeverity;
-  status: EventStatus;
-  source: string;
-  timestamp: string;
-  ip: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  image_url: string | null;
+  images: Array<{ url: string; alt?: string }>;
+  price: number;
+  price_display: string | null;
+  discount_pct: number;
+  discount_note: string | null;
+  is_available: boolean;
+  stock_type: StockType;
+  stock_quantity: number | null;
+  low_stock_alert: number;
+  variants: ProductVariant[];
+  options: ProductOption[];
+  metadata: Record<string, any>;
+  sort_order: number;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-export interface AiInsight {
-  label: string;
-  value: number;
-  unit: string;
-  description: string;
-  progress: number;
+export interface ProductCategory {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
 }

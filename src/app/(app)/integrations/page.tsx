@@ -14,6 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { useApiError } from "@/hooks/use-api-error";
+import { apiFetch } from "@/lib/api";
 
 const typeIcons: Record<string, any> = { api: Globe, database: Database, webhook: Webhook, plugin: Plug };
 
@@ -32,56 +35,67 @@ export default function IntegrationsPage() {
   const [createWebhookOpen, setCreateWebhookOpen] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'api', description: '', config: '' });
   const [webhookForm, setWebhookForm] = useState({ url: '', events: '' });
+  const { error, handleError, clearError } = useApiError();
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/integrations').then(r => r.json()),
-      fetch('/api/webhooks').then(r => r.json()),
+      apiFetch('/api/integrations'),
+      apiFetch('/api/webhooks'),
     ]).then(([i, w]) => {
       setIntegrations(Array.isArray(i) ? i : []);
       setWebhooks(Array.isArray(w) ? w : []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(handleError).finally(() => setLoading(false));
+  }, [handleError]);
 
   async function createIntegration() {
     let config = {};
     try { config = JSON.parse(form.config || '{}'); } catch { config = {}; }
-    const res = await fetch('/api/integrations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: form.name, type: form.type, description: form.description, config, status: 'active' }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch('/api/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, type: form.type, description: form.description, config, status: 'active' }),
+      });
       setIntegrations(prev => [data, ...prev]);
       setCreateOpen(false);
       setForm({ name: '', type: 'api', description: '', config: '' });
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function createWebhook() {
     const events = webhookForm.events.split(',').map(e => e.trim()).filter(Boolean);
-    const res = await fetch('/api/webhooks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: webhookForm.url, events, is_active: true }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch('/api/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhookForm.url, events, is_active: true }),
+      });
       setWebhooks(prev => [data, ...prev]);
       setCreateWebhookOpen(false);
       setWebhookForm({ url: '', events: '' });
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function deleteIntegration(id: string) {
-    await fetch(`/api/integrations/${id}`, { method: 'DELETE' });
-    setIntegrations(prev => prev.filter(i => i.id !== id));
+    try {
+      await apiFetch(`/api/integrations/${id}`, { method: 'DELETE' });
+      setIntegrations(prev => prev.filter(i => i.id !== id));
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async function deleteWebhook(id: string) {
-    await fetch(`/api/webhooks/${id}`, { method: 'DELETE' });
-    setWebhooks(prev => prev.filter(w => w.id !== id));
+    try {
+      await apiFetch(`/api/webhooks/${id}`, { method: 'DELETE' });
+      setWebhooks(prev => prev.filter(w => w.id !== id));
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   const filtered = integrations.filter(i =>
@@ -93,6 +107,8 @@ export default function IntegrationsPage() {
       <PageHeader title="Integrations" description="Connect your agents to external services">
         <Button variant="ghost" size="sm" className="bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" /> Add Integration</Button>
       </PageHeader>
+
+      {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

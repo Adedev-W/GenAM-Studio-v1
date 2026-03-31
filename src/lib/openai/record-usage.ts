@@ -1,5 +1,41 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
+/**
+ * Check if token usage has exceeded limits for a business/agent.
+ * Returns { exceeded: true, message } if limit reached, { exceeded: false } otherwise.
+ */
+export async function checkTokenLimit(
+  supabase: SupabaseClient,
+  businessId: string,
+  agentId: string | null
+): Promise<{ exceeded: boolean; message?: string }> {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Check limits within current period
+  const { data: limits } = await supabase
+    .from('token_limits')
+    .select('id, name, monthly_token_limit, current_tokens_used, agent_id')
+    .eq('business_id', businessId)
+    .eq('is_active', true)
+    .lte('period_start', today)
+    .gte('period_end', today);
+
+  if (!limits || limits.length === 0) return { exceeded: false };
+
+  for (const limit of limits) {
+    const isMatch = limit.agent_id === null || limit.agent_id === agentId;
+    if (isMatch && limit.current_tokens_used >= limit.monthly_token_limit) {
+      const scope = limit.agent_id ? `Agent ini` : 'Workspace';
+      return {
+        exceeded: true,
+        message: `${scope} telah mencapai batas penggunaan token bulanan (${limit.current_tokens_used.toLocaleString()} / ${limit.monthly_token_limit.toLocaleString()}). Silakan tingkatkan limit di pengaturan Usage.`,
+      };
+    }
+  }
+
+  return { exceeded: false };
+}
+
 // Pricing per 1M tokens (USD)
 export const MODEL_PRICING: Record<string, { prompt: number; completion: number }> = {
   'gpt-4o': { prompt: 2.50, completion: 10.00 },
@@ -12,7 +48,7 @@ export const MODEL_PRICING: Record<string, { prompt: number; completion: number 
 };
 
 interface RecordUsageParams {
-  workspaceId: string;
+  businessId: string;
   agentId: string | null;
   modelId: string;
   tokensPrompt: number;
@@ -25,13 +61,13 @@ export async function recordTokenUsage(
   supabase: SupabaseClient,
   params: RecordUsageParams
 ) {
-  const { workspaceId, agentId, modelId, tokensPrompt, tokensCompletion, sessionId, conversationId } = params;
+  const { businessId, agentId, modelId, tokensPrompt, tokensCompletion, sessionId, conversationId } = params;
 
   const pricing = MODEL_PRICING[modelId] || { prompt: 1.00, completion: 1.00 };
   const costUsd = (tokensPrompt * pricing.prompt + tokensCompletion * pricing.completion) / 1_000_000;
 
   await supabase.from('cost_entries').insert({
-    workspace_id: workspaceId,
+    business_id: businessId,
     agent_id: agentId || null,
     model_id: modelId,
     tokens_prompt: tokensPrompt,
@@ -46,10 +82,10 @@ export async function recordTokenUsage(
   const totalTokens = tokensPrompt + tokensCompletion;
   const now = new Date().toISOString().split('T')[0];
 
-  // Update workspace-wide limit
+  // Update business-wide limit
   try {
     await supabase.rpc('increment_token_usage', {
-      p_workspace_id: workspaceId,
+      p_business_id: businessId,
       p_agent_id: agentId || null,
       p_tokens: totalTokens,
       p_today: now,

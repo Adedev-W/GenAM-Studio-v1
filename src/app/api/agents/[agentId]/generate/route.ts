@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
+import { buildProductPromptSection } from '@/lib/products/sync-prompts';
 
 export async function POST(
   request: Request,
@@ -17,18 +18,19 @@ export async function POST(
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('workspace_id')
+      .select('active_business_id')
       .eq('id', user.id)
       .single();
-    const workspaceId = profile?.workspace_id;
-    if (!workspaceId) return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    const businessId = profile?.active_business_id;
+    if (!businessId) return NextResponse.json({ error: 'Business not found' }, { status: 404 });
 
-    const { data: workspace } = await supabase
-      .from('workspaces')
-      .select('settings')
-      .eq('id', workspaceId)
+    // Fetch business profile (settings + business info)
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('settings, business_type, target_market, channels, tone')
+      .eq('id', businessId)
       .single();
-    const apiKey = (workspace?.settings as any)?.openai_api_key;
+    const apiKey = (business?.settings as any)?.openai_api_key;
     if (!apiKey) {
       return NextResponse.json(
         { error: 'OpenAI API key belum dikonfigurasi. Silakan tambahkan di Settings → API Keys.' },
@@ -37,16 +39,35 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { business_type, products, target_market, channels, tone, product_images } = body;
+    const { product_ids, channels: reqChannels, tone: reqTone } = body;
 
-    if (!business_type || !products) {
+    if (!Array.isArray(product_ids) || product_ids.length === 0) {
       return NextResponse.json(
-        { error: 'business_type dan products wajib diisi' },
+        { error: 'Pilih minimal 1 produk' },
         { status: 400 }
       );
     }
 
-    const channelList = Array.isArray(channels) ? channels.join(', ') : channels || 'Website';
+    // Fetch selected products from DB
+    const { data: selectedProducts } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', product_ids)
+      .eq('business_id', businessId);
+
+    if (!selectedProducts || selectedProducts.length === 0) {
+      return NextResponse.json(
+        { error: 'Produk tidak ditemukan' },
+        { status: 400 }
+      );
+    }
+
+    // Use business profile as defaults, override with request params
+    const businessType = business?.business_type || 'Toko Online';
+    const targetMarket = business?.target_market || 'Umum';
+    const channelList = (reqChannels?.length ? reqChannels : business?.channels || ['Website']).join(', ');
+    const tone = reqTone || business?.tone || 'Profesional & Formal';
+
     const toneMap: Record<string, string> = {
       'Profesional & Formal': 'profesional dan formal',
       'Santai & Akrab': 'santai, akrab, dan ramah seperti teman',
@@ -54,50 +75,42 @@ export async function POST(
     };
     const toneDesc = toneMap[tone] || 'profesional dan ramah';
 
-    const imageList = Array.isArray(product_images) ? product_images.filter((img: any) => img.url) : [];
-    const imageSection = imageList.length > 0
-      ? `\nFoto Produk Tersedia (embed URL ini dalam system_prompt):\n${imageList.map((img: any, i: number) =>
-          `${i + 1}. ${img.name || `Produk ${i + 1}`}${img.description ? ` — ${img.description}` : ''}: ${img.url}`
-        ).join('\n')}\n`
-      : '';
+    // Build product list from DB data
+    const productList = selectedProducts.map((p: any) =>
+      `- ${p.name}: Rp${Number(p.price).toLocaleString('id-ID')}${p.description ? ` — ${p.description}` : ''}`
+    ).join('\n');
 
     const metaPrompt = `Kamu adalah AI yang membantu membuat konfigurasi chatbot untuk bisnis UMKM Indonesia.
 
 Berdasarkan informasi bisnis berikut, buat konfigurasi agent AI yang lengkap:
 
-Jenis Bisnis: ${business_type}
-Produk/Jasa: ${products}
-Target Pelanggan: ${target_market || 'Umum'}
+Jenis Bisnis: ${businessType}
+Target Pelanggan: ${targetMarket}
 Channel Penjualan: ${channelList}
-Gaya Komunikasi: ${tone || 'Profesional & Formal'}
-${imageSection}
+Gaya Komunikasi: ${tone}
+
+Produk/Jasa (dari database):
+${productList}
 
 Tugas kamu: Generate output JSON dengan format PERSIS seperti berikut (jangan tambahkan teks lain di luar JSON):
 
 {
   "name": "nama agent yang singkat dan deskriptif (contoh: Asisten Toko Batik Nusantara)",
   "description": "deskripsi satu kalimat tentang apa yang dilakukan agent ini",
-  "system_prompt": "system prompt lengkap dalam Bahasa Indonesia...",
-  "suggested_widgets": ["stat", "list", "card"]
+  "system_prompt": "system prompt lengkap dalam Bahasa Indonesia..."
 }
 
 Untuk system_prompt, tulis dalam Bahasa Indonesia yang ${toneDesc}. System prompt harus:
-1. Memperkenalkan agent sebagai asisten untuk ${business_type}
-2. Menjelaskan produk/jasa: ${products}
-3. Menyebutkan target pelanggan: ${target_market || 'umum'}
+1. Memperkenalkan agent sebagai asisten penjualan interaktif untuk ${businessType}
+2. Menjelaskan produk/jasa berdasarkan data produk di atas (gunakan nama dan harga yang tepat)
+3. Menyebutkan target pelanggan: ${targetMarket}
 4. Menginstruksikan agent untuk membantu pelanggan di channel: ${channelList}
 5. Menyertakan panduan gaya komunikasi yang ${toneDesc}
-6. Menginstruksikan agent untuk memberikan informasi harga, stok, cara pemesanan jika ditanya
-7. Sertakan instruksi widget EKSPLISIT dengan contoh format nyata berdasarkan produk bisnis ini. Instruksi harus mencakup:
-   - Kapan pakai widget list: "Ketika pelanggan minta lihat produk/menu, tampilkan dengan format: <widget>{"type":"list","label":"Produk Kami","props":{"items":"[contoh item dari ${products.split('\n')[0] || 'produk bisnis'}]"}}</widget>"
-   - Kapan pakai widget stat: "Ketika menyebutkan harga atau paket spesial, gunakan: <widget>{"type":"stat","label":"Harga","props":{"label":"[nama produk]","value":"[harga]","trend":"up"}}</widget>"
-   - Kapan pakai widget alert: "Untuk promo atau pengumuman penting: <widget>{"type":"alert","label":"Info","props":{"title":"[judul]","message":"[isi]","type":"success"}}</widget>"
-   - Kapan pakai widget card: "Untuk detail satu produk: <widget>{"type":"card","label":"Detail","props":{"title":"[nama]","subtitle":"[kategori]","body":"[deskripsi + harga]"}}</widget>"
-   - Tekankan: JSON harus valid, gunakan \\n untuk baris baru dalam items
-${imageList.length > 0 ? `8. Sertakan instruksi widget IMAGE untuk setiap foto produk yang tersedia. Contoh:\n   "Untuk menampilkan foto produk, gunakan: <widget>{\\"type\\":\\"image\\",\\"label\\":\\"Foto ${imageList[0]?.name || 'Produk'}\\",\\"props\\":{\\"url\\":\\"${imageList[0]?.url || ''}\\",\\"alt\\":\\"${imageList[0]?.name || ''}\\",\\"caption\\":\\"${imageList[0]?.description || ''}\\"}}</widget>"\n   Embed URL foto yang sudah diberikan di atas langsung ke dalam system_prompt.\n9. Panjang system prompt minimal 300 kata, komprehensif dengan contoh widget yang sudah diisi sesuai bisnis` : '8. Panjang system prompt minimal 300 kata, komprehensif dengan contoh widget yang sudah diisi sesuai bisnis'}
-
-Untuk suggested_widgets, pilih 3-5 widget yang paling relevan dari daftar ini: stat, table, list, bar_chart, line_chart, pie_chart, badge, alert, code, card
-Contoh: untuk toko online -> ["list", "card", "stat", "badge"], untuk restoran -> ["list", "card", "alert"]
+6. Menginstruksikan agent untuk membantu pelanggan: menjawab pertanyaan, menjelaskan produk, dan memandu proses pemesanan
+7. JANGAN sertakan instruksi tentang tool (show_canvas, create_order, dll) — tool decision akan ditangani oleh sistem secara otomatis
+8. JANGAN sertakan format HTML, widget, atau formatting khusus apapun — agent hanya merespons dengan teks biasa
+9. Fokus pada IDENTITAS agent dan PENGETAHUAN PRODUK saja
+10. Panjang system prompt minimal 200 kata, komprehensif
 
 Pastikan output adalah JSON valid, tidak ada markdown, tidak ada penjelasan tambahan.`;
 
@@ -125,15 +138,29 @@ Pastikan output adalah JSON valid, tidak ada markdown, tidak ada penjelasan tamb
       return NextResponse.json({ error: 'Gagal memproses respons AI' }, { status: 500 });
     }
 
+    // Build product section from all selected products
+    const productSection = buildProductPromptSection(selectedProducts);
+
     const result = {
-      name: parsed.name || `Asisten ${business_type}`,
+      name: parsed.name || `Asisten ${businessType}`,
       description:
-        parsed.description || `Agent AI untuk membantu pelanggan ${business_type}`,
-      system_prompt: parsed.system_prompt || '',
-      suggested_widgets: Array.isArray(parsed.suggested_widgets)
-        ? parsed.suggested_widgets
-        : ['list', 'card', 'stat'],
+        parsed.description || `Agent AI untuk membantu pelanggan ${businessType}`,
+      system_prompt: (parsed.system_prompt || '') + productSection,
     };
+
+    // Save agent_products relations
+    // First delete existing relations for this agent
+    await supabase
+      .from('agent_products')
+      .delete()
+      .eq('agent_id', agentId);
+
+    // Insert new relations
+    if (product_ids.length > 0) {
+      await supabase
+        .from('agent_products')
+        .insert(product_ids.map((pid: string) => ({ agent_id: agentId, product_id: pid })));
+    }
 
     return NextResponse.json(result);
   } catch (error: any) {

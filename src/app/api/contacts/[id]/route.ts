@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
     const { data, error } = await supabase
       .from('contacts')
       .select('*')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -41,14 +41,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const body = await req.json();
 
     const { data, error } = await supabase
       .from('contacts')
       .update({ ...body, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .select()
       .single();
 
@@ -63,13 +63,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
     const { error } = await supabase
       .from('contacts')
       .delete()
       .eq('id', id)
-      .eq('workspace_id', workspaceId);
+      .eq('business_id', businessId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

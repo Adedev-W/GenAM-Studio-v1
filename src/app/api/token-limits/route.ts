@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { data, error } = await supabase
       .from('token_limits')
       .select('*, agents(name)')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .order('created_at', { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
@@ -21,12 +21,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const body = await request.json();
     const { data, error } = await supabase
       .from('token_limits')
       .insert({
-        workspace_id: workspaceId,
+        business_id: businessId,
         name: body.name,
         agent_id: body.agent_id || null,
         monthly_token_limit: body.monthly_token_limit,

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from 'zod';
-import { getWorkspaceOpenAIClient } from '@/lib/openai/workspace-client';
+import { getBusinessOpenAIClient } from '@/lib/openai/workspace-client';
 
 const ActionInputSchema = z.object({
   description: z.string().min(10, "Please provide a more detailed description."),
@@ -31,7 +31,7 @@ export async function generatePolicySuggestions(prevState: any, formData: FormDa
   }
 
   try {
-    const { client: openai } = await getWorkspaceOpenAIClient();
+    const { client: openai } = await getBusinessOpenAIClient();
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",

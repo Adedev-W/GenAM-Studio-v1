@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 import { triggerWorkflows } from '@/lib/workflows/engine';
 
 const STATUS_MESSAGES: Record<string, string> = {
@@ -15,13 +15,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
     const { data, error } = await supabase
       .from('orders')
       .select('*, contacts(display_name, email, phone)')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -43,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId, userId } = await getWorkspaceContext(supabase);
+    const { businessId, userId } = await getBusinessContext(supabase);
     const body = await req.json();
 
     // Get current order for status log
@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .from('orders')
       .select('status, conversation_id')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -67,7 +67,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .from('orders')
       .update(updateData)
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .select('*, contacts(display_name, email, phone)')
       .single();
 
@@ -102,7 +102,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       // Trigger automasi: order_status_changed
       triggerWorkflows({
         type: 'order_status_changed',
-        workspaceId,
+        businessId,
         data: {
           id, order_id: id,
           order_number: data.order_number,
@@ -138,14 +138,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { workspaceId, userId } = await getWorkspaceContext(supabase);
+    const { businessId, userId } = await getBusinessContext(supabase);
 
     // Soft cancel instead of hard delete
     const { data: current } = await supabase
       .from('orders')
       .select('status')
       .eq('id', id)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -154,7 +154,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       .from('orders')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', id)
-      .eq('workspace_id', workspaceId);
+      .eq('business_id', businessId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

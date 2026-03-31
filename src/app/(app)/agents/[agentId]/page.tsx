@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -13,11 +13,13 @@ import {
   CheckCircle2,
   MessageSquare,
   ExternalLink,
-  ImagePlus,
-  X,
-  RefreshCw,
   Layout,
   Shield,
+  Plus,
+  X,
+  Type,
+  Cpu,
+  HelpCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -35,19 +38,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-
-const BUSINESS_TYPES = [
-  "Toko Online",
-  "Restoran/Kuliner",
-  "Jasa/Servis",
-  "Salon & Kecantikan",
-  "Travel & Wisata",
-  "Kesehatan & Apotek",
-  "Pendidikan & Kursus",
-  "Properti",
-  "Lainnya",
-];
+import { useApiError } from "@/hooks/use-api-error";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { apiFetch } from "@/lib/api";
+import { ProductSelector } from "./components/product-selector";
 
 const TONE_OPTIONS = [
   { value: "Profesional & Formal", label: "Profesional & Formal" },
@@ -57,57 +53,105 @@ const TONE_OPTIONS = [
 
 const CHANNEL_OPTIONS = ["WhatsApp", "Instagram", "Tokopedia", "Website"];
 
-const WIDGET_LABELS: Record<string, string> = {
-  stat: "Statistik",
-  table: "Tabel",
-  list: "Daftar",
-  bar_chart: "Bar Chart",
-  line_chart: "Line Chart",
-  pie_chart: "Pie Chart",
-  badge: "Badge",
-  alert: "Alert",
-  code: "Kode",
-  card: "Kartu Produk",
-};
-
 const GUARDRAIL_OPTIONS = [
   { value: "default" as const, label: "Default", description: "Filter dasar — sopan, aman, dan membantu", color: "text-blue-500", bg: "bg-blue-500/10" },
   { value: "medium" as const, label: "Medium", description: "Hanya bahas topik relevan dengan bisnis", color: "text-amber-500", bg: "bg-amber-500/10" },
   { value: "hard" as const, label: "Hard", description: "Tolak semua off-topic, format respons ketat", color: "text-red-500", bg: "bg-red-500/10" },
 ];
 
+const MODEL_OPTIONS = [
+  {
+    value: "gpt-4.1",
+    label: "GPT-4.1",
+    badge: "Direkomendasikan",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    description: "Model terbaru, balance performa dan harga.",
+    details: [
+      "Tool calling sangat akurat",
+      "Instruksi following terbaik",
+      "Cocok untuk sales agent interaktif",
+    ],
+  },
+  {
+    value: "gpt-4o",
+    label: "GPT-4o",
+    badge: "Premium",
+    badgeColor: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    description: "Model terpintar, performa tertinggi.",
+    details: [
+      "Decision-making paling akurat",
+      "Percakapan kompleks multi-turn",
+      "Biaya ~2x GPT-4o Mini",
+    ],
+  },
+  {
+    value: "gpt-4.1-mini",
+    label: "GPT-4.1 Mini",
+    badge: "Sweet Spot",
+    badgeColor: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    description: "Versi hemat dari GPT-4.1.",
+    details: [
+      "Tool calling cukup baik",
+      "Lebih murah dari GPT-4.1",
+      "Balance harga vs performa",
+    ],
+  },
+  {
+    value: "gpt-4o-mini",
+    label: "GPT-4o Mini",
+    badge: "Hemat",
+    badgeColor: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    description: "Cepat dan paling murah.",
+    details: [
+      "Cocok untuk chat sederhana (FAQ)",
+      "Volume chat tinggi, budget terbatas",
+      "Kurang akurat untuk tool calling",
+    ],
+  },
+  {
+    value: "o4-mini",
+    label: "o4-mini",
+    badge: "Reasoning",
+    badgeColor: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+    description: "Reasoning model, sangat akurat.",
+    details: [
+      "Tool calling paling presisi",
+      "Reasoning step-by-step sebelum jawab",
+      "Cocok untuk decision-making kompleks",
+    ],
+  },
+];
+
 export default function AgentBuilderPage() {
   const params = useParams();
   const agentId = params.agentId as string;
   const { toast } = useToast();
+  const { error: apiError, handleError, clearError } = useApiError();
 
   // Agent data
   const [agentLoading, setAgentLoading] = useState(true);
   const [agentName, setAgentName] = useState("");
   const [agentDescription, setAgentDescription] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [suggestedWidgets, setSuggestedWidgets] = useState<string[]>([]);
   const [existingMeta, setExistingMeta] = useState<Record<string, any>>({});
 
-  // Business form
-  const [businessType, setBusinessType] = useState("");
-  const [products, setProducts] = useState("");
-  const [targetMarket, setTargetMarket] = useState("");
+  // Product selector
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
+  // Tone & channels
   const [channels, setChannels] = useState<string[]>([]);
   const [tone, setTone] = useState("Profesional & Formal");
-
-  // Product images
-  const [productImages, setProductImages] = useState<Array<{ url: string; path: string; name: string; description: string }>>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [imagesChangedAfterGenerate, setImagesChangedAfterGenerate] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Guardrails
   const [guardrailLevel, setGuardrailLevel] = useState<"default" | "medium" | "hard">("default");
 
+  // Model selection
+  const [modelId, setModelId] = useState("gpt-4.1");
+
   // Canvas equipment
   const [canvasLayouts, setCanvasLayouts] = useState<any[]>([]);
   const [selectedCanvasIds, setSelectedCanvasIds] = useState<string[]>([]);
+  const [showCanvasModal, setShowCanvasModal] = useState(false);
 
   // UI state
   const [generating, setGenerating] = useState(false);
@@ -125,15 +169,12 @@ export default function AgentBuilderPage() {
       setSystemPrompt(data.system_prompt || "");
       const meta = data.metadata || {};
       setExistingMeta(meta);
-      if (meta.suggested_widgets) setSuggestedWidgets(meta.suggested_widgets);
-      if (meta.business_type) setBusinessType(meta.business_type);
-      if (meta.products) setProducts(meta.products);
-      if (meta.target_market) setTargetMarket(meta.target_market);
+      if (meta.product_ids) setSelectedProductIds(meta.product_ids);
       if (meta.channels) setChannels(meta.channels);
       if (meta.tone) setTone(meta.tone);
-      if (meta.product_images) setProductImages(meta.product_images);
       if (meta.canvas_ids) setSelectedCanvasIds(meta.canvas_ids);
       if (meta.guardrail_level) setGuardrailLevel(meta.guardrail_level);
+      if (data.model_id) setModelId(data.model_id);
       if (data.system_prompt) setGeneratedOnce(true);
     } catch {
       /* silent */
@@ -142,12 +183,25 @@ export default function AgentBuilderPage() {
     }
   }, [agentId]);
 
+  // Fetch business profile for defaults
+  useEffect(() => {
+    fetch("/api/settings/workspace")
+      .then((r) => r.json())
+      .then((biz) => {
+        if (biz?.channels && channels.length === 0) setChannels(biz.channels);
+        if (biz?.tone && tone === "Profesional & Formal") setTone(biz.tone);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchAgent();
-    fetch("/api/canvas").then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setCanvasLayouts(d);
-    }).catch(() => {});
-  }, [fetchAgent]);
+    apiFetch("/api/canvas")
+      .then((d) => {
+        if (Array.isArray(d)) setCanvasLayouts(d);
+      })
+      .catch(handleError);
+  }, [fetchAgent, handleError]);
 
   function toggleChannel(channel: string) {
     setChannels((prev) =>
@@ -155,50 +209,11 @@ export default function AgentBuilderPage() {
     );
   }
 
-  async function uploadImage(file: File) {
-    setUploadingImage(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`/api/agents/${agentId}/media`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Gagal upload");
-      }
-      const { url, path } = await res.json();
-      const name = file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
-      setProductImages((prev) => [...prev, { url, path, name, description: "" }]);
-      setImagesChangedAfterGenerate(true);
-    } catch (err: any) {
-      toast({ title: "Gagal upload foto", description: err.message, variant: "destructive" });
-    } finally {
-      setUploadingImage(false);
-    }
-  }
-
-  async function removeImage(index: number) {
-    const img = productImages[index];
-    try {
-      await fetch(`/api/agents/${agentId}/media`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: img.path }),
-      });
-    } catch {
-      /* ignore storage error, remove from state anyway */
-    }
-    setProductImages((prev) => prev.filter((_, i) => i !== index));
-    setImagesChangedAfterGenerate(true);
-  }
-
   async function handleGenerate() {
-    if (!businessType || !products.trim()) {
+    if (selectedProductIds.length === 0) {
       toast({
-        title: "Lengkapi form terlebih dahulu",
-        description: "Jenis bisnis dan produk/jasa wajib diisi.",
+        title: "Pilih minimal 1 produk",
+        description: "Pilih produk dari database agar agent tahu apa yang dijual.",
         variant: "destructive",
       });
       return;
@@ -206,42 +221,26 @@ export default function AgentBuilderPage() {
 
     setGenerating(true);
     try {
-      const res = await fetch(`/api/agents/${agentId}/generate`, {
+      const result = await apiFetch(`/api/agents/${agentId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          business_type: businessType,
-          products,
-          target_market: targetMarket,
+          product_ids: selectedProductIds,
           channels,
           tone,
-          product_images: productImages.map(({ url, name, description }) => ({ url, name, description })),
         }),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Gagal generate");
-      }
-
-      const result = await res.json();
       setAgentName(result.name);
       setAgentDescription(result.description);
       setSystemPrompt(result.system_prompt);
-      setSuggestedWidgets(result.suggested_widgets || []);
       setGeneratedOnce(true);
-      setImagesChangedAfterGenerate(false);
 
       toast({
         title: "Berhasil di-generate!",
         description: "System prompt agent sudah siap. Kamu bisa mengeditnya sebelum menyimpan.",
       });
     } catch (err: any) {
-      toast({
-        title: "Gagal generate",
-        description: err.message,
-        variant: "destructive",
-      });
+      handleError(err);
     } finally {
       setGenerating(false);
     }
@@ -249,42 +248,31 @@ export default function AgentBuilderPage() {
 
   async function handleSave() {
     if (!agentName.trim()) {
-      toast({
-        title: "Nama agent wajib diisi",
-        variant: "destructive",
-      });
+      toast({ title: "Nama agent wajib diisi", variant: "destructive" });
       return;
     }
 
     setSaving(true);
     setSaved(false);
     try {
-      const res = await fetch(`/api/agents/${agentId}`, {
+      await apiFetch(`/api/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: agentName,
           description: agentDescription,
           system_prompt: systemPrompt,
+          model_id: modelId,
           metadata: {
             ...existingMeta,
-            business_type: businessType,
-            products,
-            target_market: targetMarket,
+            product_ids: selectedProductIds,
             channels,
             tone,
-            suggested_widgets: suggestedWidgets,
-            product_images: productImages,
             canvas_ids: selectedCanvasIds,
             guardrail_level: guardrailLevel,
           },
         }),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Gagal menyimpan");
-      }
 
       setSaved(true);
       toast({
@@ -293,15 +281,13 @@ export default function AgentBuilderPage() {
       });
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
-      toast({
-        title: "Gagal menyimpan",
-        description: err.message,
-        variant: "destructive",
-      });
+      handleError(err);
     } finally {
       setSaving(false);
     }
   }
+
+  const selectedCanvases = canvasLayouts.filter((c) => selectedCanvasIds.includes(c.id));
 
   if (agentLoading) {
     return (
@@ -349,6 +335,8 @@ export default function AgentBuilderPage() {
         </Button>
       </div>
 
+      {apiError && <ErrorAlert error={apiError} onDismiss={clearError} className="mb-4" />}
+
       <Tabs defaultValue="builder" className="space-y-4">
         <TabsList>
           <TabsTrigger value="builder">
@@ -364,59 +352,40 @@ export default function AgentBuilderPage() {
         {/* ============ BUILDER TAB ============ */}
         <TabsContent value="builder" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Section A: Business Info Form */}
+            {/* Section A: Agent Config Form */}
             <Card className="border-border/50">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  Informasi Bisnis
+                  Konfigurasi Agent
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Isi detail bisnis kamu dan biarkan AI membuatkan agent yang sempurna
+                  Pilih produk dan atur preferensi, lalu generate dengan AI
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Business Type */}
+                {/* Agent Name */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Jenis Bisnis <span className="text-red-500">*</span>
-                  </Label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih jenis bisnis..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUSINESS_TYPES.map((bt) => (
-                        <SelectItem key={bt} value={bt}>
-                          {bt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Products */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Produk atau Jasa <span className="text-red-500">*</span>
-                  </Label>
-                  <Textarea
-                    value={products}
-                    onChange={(e) => setProducts(e.target.value)}
-                    placeholder="Contoh: Baju batik wanita, harga 150rb-500rb, tersedia berbagai motif"
-                    rows={3}
-                    className="resize-none text-sm"
+                  <Label className="text-sm font-medium">Nama Agent</Label>
+                  <Input
+                    value={agentName}
+                    onChange={(e) => setAgentName(e.target.value)}
+                    placeholder="Nama agent (akan diisi otomatis saat generate)"
+                    className="text-sm"
                   />
                 </div>
 
-                {/* Target Market */}
+                {/* Product Selector */}
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Target Pelanggan</Label>
-                  <Input
-                    value={targetMarket}
-                    onChange={(e) => setTargetMarket(e.target.value)}
-                    placeholder="Contoh: Wanita usia 25-45 tahun, ibu rumah tangga"
-                    className="text-sm"
+                  <Label className="text-sm font-medium">
+                    Produk <span className="text-red-500">*</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground font-light -mt-0.5">
+                    Pilih produk dari database yang akan diketahui agent
+                  </p>
+                  <ProductSelector
+                    selectedIds={selectedProductIds}
+                    onSelectionChange={setSelectedProductIds}
                   />
                 </div>
 
@@ -431,10 +400,7 @@ export default function AgentBuilderPage() {
                           checked={channels.includes(ch)}
                           onCheckedChange={() => toggleChannel(ch)}
                         />
-                        <label
-                          htmlFor={`ch-${ch}`}
-                          className="text-sm font-light cursor-pointer"
-                        >
+                        <label htmlFor={`ch-${ch}`} className="text-sm font-light cursor-pointer">
                           {ch}
                         </label>
                       </div>
@@ -459,82 +425,13 @@ export default function AgentBuilderPage() {
                   </Select>
                 </div>
 
-                {/* Product Images */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Foto Produk <span className="text-muted-foreground font-normal text-xs">(Opsional)</span></Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs gap-1.5"
-                      disabled={uploadingImage}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploadingImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
-                      Tambah Foto
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const files = Array.from(e.target.files || []);
-                        e.target.value = '';
-                        for (const file of files) await uploadImage(file);
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground font-light -mt-1">
-                    Upload foto produk agar agent bisa menampilkannya saat chat (max 5MB, JPEG/PNG/WebP)
-                  </p>
-
-                  {productImages.length > 0 && (
-                    <div className="space-y-2">
-                      {imagesChangedAfterGenerate && generatedOnce && (
-                        <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
-                          <RefreshCw className="h-3 w-3 shrink-0" />
-                          Foto diperbarui — generate ulang agent agar gambar masuk ke sistem prompt
-                        </div>
-                      )}
-                      {productImages.map((img, i) => (
-                        <div key={img.url} className="flex items-start gap-3 rounded-lg border border-border/50 p-2.5">
-                          <img src={img.url} alt={img.name} className="w-14 h-14 object-cover rounded-md shrink-0 border border-border/30" />
-                          <div className="flex-1 min-w-0 space-y-1.5">
-                            <Input
-                              value={img.name}
-                              onChange={(e) => setProductImages(prev => prev.map((p, pi) => pi === i ? { ...p, name: e.target.value } : p))}
-                              placeholder="Nama produk"
-                              className="h-7 text-xs"
-                            />
-                            <Input
-                              value={img.description}
-                              onChange={(e) => setProductImages(prev => prev.map((p, pi) => pi === i ? { ...p, description: e.target.value } : p))}
-                              placeholder="Harga / deskripsi singkat"
-                              className="h-7 text-xs"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeImage(i)}
-                            className="shrink-0 p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 <Separator />
 
                 {/* Generate Button */}
                 <Button
                   variant="ghost"
                   onClick={handleGenerate}
-                  disabled={generating || !businessType || !products.trim()}
+                  disabled={generating || selectedProductIds.length === 0}
                   className="w-full bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary"
                 >
                   {generating ? (
@@ -545,19 +442,19 @@ export default function AgentBuilderPage() {
                   ) : (
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
-                      ✨ Generate dengan AI
+                      Generate dengan AI
                     </>
                   )}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Section B: Generated Config */}
+            {/* Section B: Generated Result */}
             <Card className={`border-border/50 transition-opacity ${generatedOnce ? "opacity-100" : "opacity-50"}`}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Bot className="h-4 w-4 text-primary" />
-                  Konfigurasi Agent
+                  Hasil Generate
                   {!generatedOnce && (
                     <Badge variant="outline" className="text-xs ml-auto font-normal">
                       Tunggu hasil generate
@@ -569,18 +466,6 @@ export default function AgentBuilderPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Nama Agent</Label>
-                  <Input
-                    value={agentName}
-                    onChange={(e) => setAgentName(e.target.value)}
-                    placeholder="Nama agent..."
-                    disabled={!generatedOnce}
-                    className="text-sm"
-                  />
-                </div>
-
                 {/* Description */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Deskripsi</Label>
@@ -618,7 +503,7 @@ export default function AgentBuilderPage() {
                   <p className="text-xs text-muted-foreground font-light -mt-0.5">
                     Atur seberapa ketat agent merespons pertanyaan di luar topik bisnis
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {GUARDRAIL_OPTIONS.map((opt) => {
                       const isSelected = guardrailLevel === opt.value;
                       return (
@@ -644,87 +529,167 @@ export default function AgentBuilderPage() {
                   </div>
                 </div>
 
-                {/* Suggested Widgets */}
-                {suggestedWidgets.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Widget yang Disarankan</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {suggestedWidgets.map((w) => (
-                        <Badge key={w} variant="secondary" className="text-xs">
-                          {WIDGET_LABELS[w] || w}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground font-light">
-                      Widget ini akan otomatis ditampilkan agent saat relevan
-                    </p>
+                {/* Model Selector with Tooltip */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    Model AI
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground">
+                          <HelpCircle className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-0" side="left" align="start">
+                        <div className="p-3 border-b border-border/50">
+                          <p className="text-sm font-semibold">Panduan Pemilihan Model</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Model menentukan seberapa pintar agent dalam memahami permintaan dan memilih respons yang tepat.</p>
+                        </div>
+                        <div className="divide-y divide-border/30">
+                          {MODEL_OPTIONS.map((m) => (
+                            <div key={m.value} className="p-3 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{m.label}</span>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${m.badgeColor}`}>
+                                  {m.badge}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{m.description}</p>
+                              <ul className="space-y-0.5">
+                                {m.details.map((d, i) => (
+                                  <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                                    <span className="text-primary mt-0.5">&#8226;</span>
+                                    {d}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </Label>
+                  <p className="text-xs text-muted-foreground font-light -mt-1">
+                    Model yang lebih pintar lebih akurat memilih kapan tampilkan menu vs jawab teks
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MODEL_OPTIONS.map((m) => {
+                      const isSelected = modelId === m.value;
+                      return (
+                        <button
+                          key={m.value}
+                          type="button"
+                          disabled={!generatedOnce}
+                          onClick={() => setModelId(m.value)}
+                          className={`flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-colors ${
+                            isSelected
+                              ? "border-primary/50 bg-primary/5"
+                              : "border-border/50 hover:border-border/80"
+                          } ${!generatedOnce ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          <div className="flex items-center gap-1.5 w-full">
+                            <span className="text-xs font-medium">{m.label}</span>
+                            <Badge variant="outline" className={`text-[10px] px-1 py-0 ml-auto ${m.badgeColor}`}>
+                              {m.badge}
+                            </Badge>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground leading-tight">{m.description}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
 
-                {/* Canvas Equipment */}
+                {/* Response Mode — Agent Response Selection */}
                 <div className="space-y-3">
                   <Label className="text-sm font-medium flex items-center gap-2">
                     <Layout className="h-4 w-4 text-primary" />
-                    Canvas
-                    <span className="text-muted-foreground font-normal text-xs">(Opsional)</span>
+                    Mode Respons
                   </Label>
                   <p className="text-xs text-muted-foreground font-light -mt-1">
-                    Pilih canvas yang bisa ditampilkan agent di chat. Agent otomatis tahu kapan harus menampilkannya.
+                    Agent selalu merespons dengan teks. Tambahkan canvas untuk tampilan visual.
                   </p>
-                  {canvasLayouts.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border/50 p-4 text-center">
-                      <p className="text-xs text-muted-foreground">Belum ada canvas.</p>
-                      <Link href="/canvas">
-                        <Button variant="link" size="sm" className="text-xs h-auto p-0 mt-1">
-                          Buat canvas baru
+
+                  <div className="space-y-2">
+                    {/* Text mode — always active */}
+                    <div className="flex items-center gap-3 rounded-lg border border-primary/50 bg-primary/5 p-3">
+                      <div className="p-1.5 rounded-md bg-primary/15 shrink-0">
+                        <Type className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Teks</p>
+                        <p className="text-xs text-muted-foreground">Respons teks selalu aktif</p>
+                      </div>
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs shrink-0">
+                        Aktif
+                      </Badge>
+                    </div>
+
+                    {/* Canvas warning — products exist but no canvas */}
+                    {selectedProductIds.length > 0 && selectedCanvasIds.length === 0 && generatedOnce && (
+                      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                        <div className="p-1 rounded-md bg-amber-500/10 shrink-0 mt-0.5">
+                          <Layout className="h-3.5 w-3.5 text-amber-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-amber-700">Agent punya produk tapi belum ada canvas</p>
+                          <p className="text-[11px] text-amber-600/80 mt-0.5 leading-relaxed">
+                            Tanpa canvas, agent hanya bisa merespons dengan teks biasa.
+                            Pilih canvas agar agent bisa tampilkan menu visual interaktif.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Canvas mode — optional */}
+                    <div className={`rounded-lg border p-3 ${selectedCanvases.length > 0 ? "border-primary/50 bg-primary/5" : "border-border/50"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-md shrink-0 ${selectedCanvases.length > 0 ? "bg-primary/15" : "bg-muted/50"}`}>
+                          <Layout className={`h-3.5 w-3.5 ${selectedCanvases.length > 0 ? "text-primary" : "text-muted-foreground"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">Canvas</p>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedCanvases.length > 0
+                              ? `${selectedCanvases.length} canvas dipilih`
+                              : "Tampilan visual opsional"}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!generatedOnce}
+                          onClick={() => setShowCanvasModal(true)}
+                          className="shrink-0 text-xs bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary"
+                        >
+                          <Plus className="mr-1 h-3 w-3" />
+                          {selectedCanvases.length > 0 ? "Ubah" : "Pilih Canvas"}
                         </Button>
-                      </Link>
+                      </div>
+
+                      {/* Selected canvas chips */}
+                      {selectedCanvases.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2.5 pl-9">
+                          {selectedCanvases.map((c) => (
+                            <Badge
+                              key={c.id}
+                              variant="secondary"
+                              className="text-xs gap-1 pr-1"
+                            >
+                              {c.name}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCanvasIds((prev) => prev.filter((id) => id !== c.id))}
+                                className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-                      {canvasLayouts.map((c) => {
-                        const isSelected = selectedCanvasIds.includes(c.id);
-                        const elCount = (c.layout_json?.elements || []).length;
-                        return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() =>
-                              setSelectedCanvasIds((prev) =>
-                                isSelected ? prev.filter((id) => id !== c.id) : [...prev, c.id]
-                              )
-                            }
-                            className={`w-full flex items-center gap-3 rounded-lg border p-2.5 text-left transition-colors ${
-                              isSelected
-                                ? "border-primary/50 bg-primary/5"
-                                : "border-border/50 hover:border-border/80"
-                            }`}
-                          >
-                            <div className={`p-1.5 rounded-md shrink-0 ${isSelected ? "bg-primary/15" : "bg-muted/50"}`}>
-                              <Layout className={`h-3.5 w-3.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{c.name}</p>
-                              {c.description && (
-                                <p className="text-xs text-muted-foreground truncate">{c.description}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs text-muted-foreground">{elCount} widget{elCount !== 1 ? "s" : ""}</span>
-                              {isSelected && (
-                                <CheckCircle2 className="h-4 w-4 text-primary" />
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {selectedCanvasIds.length > 0 && (
-                    <p className="text-xs text-primary font-medium">
-                      {selectedCanvasIds.length} canvas terpilih
-                    </p>
-                  )}
+                  </div>
                 </div>
 
                 {generatedOnce && (
@@ -786,6 +751,74 @@ export default function AgentBuilderPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Canvas Selection Modal */}
+      <Dialog open={showCanvasModal} onOpenChange={setShowCanvasModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layout className="h-5 w-5 text-primary" />
+              Pilih Canvas
+            </DialogTitle>
+            <DialogDescription>
+              Pilih canvas yang bisa ditampilkan agent saat merespons di chat.
+              Agent akan otomatis menampilkan canvas yang relevan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 max-h-[300px] overflow-y-auto py-2">
+            {canvasLayouts.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/50 p-6 text-center">
+                <p className="text-sm text-muted-foreground">Belum ada canvas.</p>
+                <Link href="/canvas">
+                  <Button variant="link" size="sm" className="text-xs h-auto p-0 mt-1">
+                    Buat canvas baru
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              canvasLayouts.map((c) => {
+                const isSelected = selectedCanvasIds.includes(c.id);
+                const elCount = (c.layout_json?.elements || []).length;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() =>
+                      setSelectedCanvasIds((prev) =>
+                        isSelected ? prev.filter((id) => id !== c.id) : [...prev, c.id]
+                      )
+                    }
+                    className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                      isSelected
+                        ? "border-primary/50 bg-primary/5"
+                        : "border-border/50 hover:border-border/80"
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-md shrink-0 ${isSelected ? "bg-primary/15" : "bg-muted/50"}`}>
+                      <Layout className={`h-3.5 w-3.5 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{c.name}</p>
+                      {c.description && (
+                        <p className="text-xs text-muted-foreground truncate">{c.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">{elCount} widget{elCount !== 1 ? "s" : ""}</span>
+                      {isSelected && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowCanvasModal(false)}>
+              Selesai
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

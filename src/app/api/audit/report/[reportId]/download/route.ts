@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET(req: Request, { params }: { params: Promise<{ reportId: string }> }) {
   try {
     const { reportId } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
     // Fetch report
     const { data: report } = await supabase
       .from('audit_reports')
       .select('*')
       .eq('id', reportId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (!report) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -22,7 +22,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ reportId
     const { data: logs } = await supabase
       .from('audit_logs')
       .select('created_at, action, resource_type, resource_id, ip_address, profiles(display_name)')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .gte('created_at', report.date_from)
       .lte('created_at', report.date_to)
       .order('created_at', { ascending: false })

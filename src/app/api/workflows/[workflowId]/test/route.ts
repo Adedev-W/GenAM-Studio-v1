@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function POST(_: Request, { params }: { params: Promise<{ workflowId: string }> }) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { workflowId } = await params;
 
     const { data: wf, error: fetchErr } = await supabase
       .from('workflows')
       .select('*')
       .eq('id', workflowId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (fetchErr || !wf) {
@@ -26,7 +26,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ workflowI
 
     const log = {
       workflow_id: workflowId,
-      workspace_id: workspaceId,
+      business_id: businessId,
       trigger_data: { type: wf.trigger_type, config: wf.trigger_config, dry_run: true },
       condition_met: conditionMet,
       action_result: actionOk

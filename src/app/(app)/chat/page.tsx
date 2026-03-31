@@ -15,6 +15,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { useApiError } from "@/hooks/use-api-error";
+import { apiFetch } from "@/lib/api";
 
 export default function ChatPage() {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -28,36 +31,42 @@ export default function ChatPage() {
     name: '', description: '', agent_id: '', workflow_id: '', welcome_message: 'Hello! How can I help you today?',
     is_public: true, require_email: false, allow_multi_user: false,
   });
+  const { error, handleError, clearError } = useApiError();
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/chat-sessions').then(r => r.json()),
-      fetch('/api/agents').then(r => r.json()),
+      apiFetch('/api/chat-sessions'),
+      apiFetch('/api/agents'),
     ]).then(([s, a]) => {
       setSessions(Array.isArray(s) ? s : []);
       setAgents(Array.isArray(a) ? a : []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(handleError).finally(() => setLoading(false));
+  }, [handleError]);
 
   async function createSession() {
-    const res = await fetch('/api/chat-sessions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, agent_id: form.agent_id || null }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch('/api/chat-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, agent_id: form.agent_id || null }),
+      });
       setSessions(prev => [data, ...prev]);
       setCreateOpen(false);
       setForm({ name: '', description: '', agent_id: '', workflow_id: '', welcome_message: 'Hello! How can I help you today?', is_public: true, require_email: false, allow_multi_user: false });
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function deleteSession() {
     if (!deleteId) return;
-    await fetch(`/api/chat-sessions/${deleteId}`, { method: 'DELETE' });
-    setSessions(prev => prev.filter(s => s.id !== deleteId));
-    setDeleteId(null);
+    try {
+      await apiFetch(`/api/chat-sessions/${deleteId}`, { method: 'DELETE' });
+      setSessions(prev => prev.filter(s => s.id !== deleteId));
+      setDeleteId(null);
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   function copyLink(token: string) {
@@ -76,6 +85,8 @@ export default function ChatPage() {
       <PageHeader title="Chat Sessions" description="Create shareable AI chat links for your agents">
         <Button variant="ghost" size="sm" className="bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" /> New Session</Button>
       </PageHeader>
+
+      {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

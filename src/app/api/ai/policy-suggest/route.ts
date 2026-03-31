@@ -1,4 +1,4 @@
-import { getWorkspaceOpenAIClient } from '@/lib/openai/workspace-client';
+import { getBusinessOpenAIClient } from '@/lib/openai/workspace-client';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = InputSchema.parse(body);
 
-    const { client: openai } = await getWorkspaceOpenAIClient();
+    const { client: openai } = await getBusinessOpenAIClient();
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",

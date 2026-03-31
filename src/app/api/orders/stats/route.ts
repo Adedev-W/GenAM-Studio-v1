@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
     const { data: orders } = await supabase
       .from('orders')
       .select('status, subtotal, created_at')
-      .eq('workspace_id', workspaceId);
+      .eq('business_id', businessId);
 
     const all = orders || [];
     const today = new Date().toISOString().split('T')[0];

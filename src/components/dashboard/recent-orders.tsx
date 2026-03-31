@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/empty-state";
+import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; bg: string }> = {
   pending:    { label: "Baru",         color: "text-yellow-500",  icon: Clock,        bg: "bg-yellow-500/10" },
@@ -45,16 +47,20 @@ interface Order {
 export function RecentOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetch('/api/orders')
-      .then(r => r.json())
+    apiFetch<Order[]>('/api/orders')
       .then(data => {
         if (Array.isArray(data)) setOrders(data.slice(0, 5));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err && typeof err === 'object' && 'title' in err) {
+          toast({ title: err.title, description: err.message, variant: "destructive" });
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   return (
     <Card className="border-border/50">

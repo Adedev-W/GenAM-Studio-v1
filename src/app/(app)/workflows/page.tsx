@@ -29,6 +29,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { useApiError } from "@/hooks/use-api-error";
+import { apiFetch } from "@/lib/api";
 
 const TRIGGER_TYPES = [
   { value: "order_created", label: "Pesanan Masuk", icon: ShoppingCart, desc: "Setiap ada pesanan baru", color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -162,52 +165,59 @@ export default function WorkflowsPage() {
     name: "", description: "", agent_id: "",
     trigger_type: "", action_type: "",
   });
+  const { error, handleError, clearError } = useApiError();
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/workflows").then(r => r.json()),
-      fetch("/api/agents").then(r => r.json()),
+      apiFetch("/api/workflows"),
+      apiFetch("/api/agents"),
     ]).then(([w, a]) => {
       setWorkflows(Array.isArray(w) ? w : []);
       setAgents(Array.isArray(a) ? a : []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(handleError).finally(() => setLoading(false));
+  }, [handleError]);
 
   async function createWorkflow() {
-    const res = await fetch("/api/workflows", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description || null,
-        agent_id: form.agent_id || null,
-        trigger_type: form.trigger_type || null,
-        action_type: form.action_type || null,
-        status: "draft",
-        is_active: false,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch("/api/workflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description || null,
+          agent_id: form.agent_id || null,
+          trigger_type: form.trigger_type || null,
+          action_type: form.action_type || null,
+          status: "draft",
+          is_active: false,
+        }),
+      });
       setWorkflows(prev => [data, ...prev]);
       setCreateOpen(false);
       setForm({ name: "", description: "", agent_id: "", trigger_type: "", action_type: "" });
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function toggleWorkflow(id: string) {
-    const res = await fetch(`/api/workflows/${id}/toggle`, { method: "POST" });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch(`/api/workflows/${id}/toggle`, { method: "POST" });
       setWorkflows(prev => prev.map(w => w.id === id ? data : w));
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function deleteWorkflow() {
     if (!deleteId) return;
-    await fetch(`/api/workflows/${deleteId}`, { method: "DELETE" });
-    setWorkflows(prev => prev.filter(w => w.id !== deleteId));
-    setDeleteId(null);
+    try {
+      await apiFetch(`/api/workflows/${deleteId}`, { method: "DELETE" });
+      setWorkflows(prev => prev.filter(w => w.id !== deleteId));
+      setDeleteId(null);
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async function useFromTemplate(tpl: typeof TEMPLATES[0]) {
@@ -234,7 +244,9 @@ export default function WorkflowsPage() {
         const data = await res.json();
         setWorkflows(prev => [data, ...prev]);
       }
-    } catch {}
+    } catch (err) {
+      handleError(err);
+    }
     setCreatingTemplate(null);
   }
 
@@ -256,8 +268,10 @@ export default function WorkflowsPage() {
         </Button>
       </PageHeader>
 
+      {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
+
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: "Total", value: stats.total, color: "text-foreground" },
           { label: "Aktif", value: stats.active, color: "text-emerald-500" },

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const action = searchParams.get('action');
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from('audit_logs')
       .select('*, profiles(display_name, avatar_url)')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .order('created_at', { ascending: false })
       .limit(limit);
 

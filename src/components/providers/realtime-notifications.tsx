@@ -19,10 +19,10 @@ function formatRupiah(n: number) {
 }
 
 export function RealtimeNotificationProvider({
-  workspaceId,
+  businessId,
   children,
 }: {
-  workspaceId: string;
+  businessId: string;
   children: React.ReactNode;
 }) {
   const [pendingCount, setPendingCount] = useState(0);
@@ -69,17 +69,17 @@ export function RealtimeNotificationProvider({
 
   // Subscribe to orders realtime
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!businessId) return;
 
     const channel = supabase
-      .channel(`orders-notify-${workspaceId}`)
+      .channel(`orders-notify-${businessId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "orders",
-          filter: `workspace_id=eq.${workspaceId}`,
+          filter: `business_id=eq.${businessId}`,
         },
         (payload) => {
           const order = payload.new as any;
@@ -97,7 +97,7 @@ export function RealtimeNotificationProvider({
           event: "UPDATE",
           schema: "public",
           table: "orders",
-          filter: `workspace_id=eq.${workspaceId}`,
+          filter: `business_id=eq.${businessId}`,
         },
         () => {
           // Re-fetch count on any update
@@ -109,7 +109,7 @@ export function RealtimeNotificationProvider({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [workspaceId, supabase, toast, playSound, fetchPendingCount]);
+  }, [businessId, supabase, toast, playSound, fetchPendingCount]);
 
   return (
     <NotificationContext.Provider value={{ pendingCount }}>

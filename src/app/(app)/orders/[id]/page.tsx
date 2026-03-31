@@ -202,7 +202,7 @@ export default function OrderDetailPage() {
             <CardTitle className="text-sm">Konfirmasi Pembayaran</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {PAYMENT_METHODS.map((pm) => (
                 <button
                   key={pm.value}
@@ -316,7 +316,7 @@ export default function OrderDetailPage() {
       {/* Link to conversation */}
       {order.conversation_id && (
         <Button variant="outline" className="w-full" asChild>
-          <Link href={`/chat/${order.conversation_id}`}>
+          <Link href={`/orders/${id}/chat`}>
             <MessageSquare className="mr-2 h-4 w-4" /> Buka Percakapan
           </Link>
         </Button>

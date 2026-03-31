@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/common/empty-state";
+import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 interface Agent {
   id: string;
@@ -26,14 +28,18 @@ const statusColors: Record<string, string> = {
 export function AgentList() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetch('/api/agents?limit=5')
-      .then(r => r.json())
+    apiFetch<Agent[]>('/api/agents?limit=5')
       .then(data => setAgents(Array.isArray(data) ? data.slice(0, 5) : []))
-      .catch(() => {})
+      .catch((err) => {
+        if (err && typeof err === 'object' && 'title' in err) {
+          toast({ title: err.title, description: err.message, variant: "destructive" });
+        }
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   return (
     <Card className="border-border/50">

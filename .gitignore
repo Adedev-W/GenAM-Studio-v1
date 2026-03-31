@@ -63,4 +63,5 @@ docs/
 # misc
 .modified
 apphosting.yaml
-
+problem.md
+planning.md

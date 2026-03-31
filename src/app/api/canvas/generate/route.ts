@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 import OpenAI from 'openai';
 
 const EXAMPLE_OUTPUT = JSON.stringify({
@@ -12,21 +12,21 @@ const EXAMPLE_OUTPUT = JSON.stringify({
     { id: "el_3", type: "list", label: "Makanan", props: { items: "Nasi Goreng — Rp 25.000\nMie Ayam — Rp 20.000\nSoto Ayam — Rp 18.000", numbered: "true" } },
     { id: "el_4", type: "stat", label: "Paket Hemat", props: { label: "Paket Isi 5", value: "Rp 80.000", delta: "Hemat 20%", trend: "up" } },
     { id: "el_5", type: "alert", label: "Info", props: { title: "Gratis Ongkir", message: "Minimal order Rp 50.000", type: "success" } },
-    { id: "el_6", type: "button", label: "CTA", props: { text: "Pesan Sekarang", variant: "default", size: "lg" } },
+    { id: "el_6", type: "button", label: "CTA", props: { text: "Pesan Sekarang", variant: "default", size: "lg", action: { type: "order", payload: "" } } },
   ],
 }, null, 2);
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId, userId } = await getWorkspaceContext(supabase);
+    const { businessId, userId } = await getBusinessContext(supabase);
 
-    const { data: workspace } = await supabase
-      .from('workspaces')
+    const { data: business } = await supabase
+      .from('businesses')
       .select('settings')
-      .eq('id', workspaceId)
+      .eq('id', businessId)
       .single();
-    const apiKey = (workspace?.settings as any)?.openai_api_key;
+    const apiKey = (business?.settings as any)?.openai_api_key;
     if (!apiKey) {
       return NextResponse.json(
         { error: 'OpenAI API key belum dikonfigurasi. Silakan tambahkan di Settings → API Keys.' },
@@ -55,7 +55,8 @@ TIPE WIDGET DAN PROPS-NYA:
 - text: props = { "content": "isi teks", "size": "xs/sm/base/lg", "weight": "light/normal/semibold/bold" }
 - badge: props = { "text": "teks badge", "color": "blue/green/amber/red/purple" }
 - separator: props = {} (kosong)
-- button: props = { "text": "teks tombol", "variant": "default/outline/secondary", "size": "sm/default/lg" }
+- button: props = { "text": "teks tombol", "variant": "default/outline/secondary", "size": "sm/default/lg", "action": { "type": "message/order/link/contact", "payload": "teks atau URL" } }
+  action types: message = kirim pesan, order = mulai pesanan, link = buka URL, contact = buka WhatsApp
 - card: props = { "title": "judul", "subtitle": "sub", "body": "isi lengkap" }
 - alert: props = { "title": "judul", "message": "isi pesan", "type": "info/success/warning/error" }
 - stat: props = { "label": "keterangan", "value": "nilai", "delta": "+10%", "trend": "up/down/neutral" }
@@ -120,8 +121,8 @@ Buat 5-15 elements yang relevan. Gunakan Bahasa Indonesia yang realistis.`;
         description,
         layout_json: { elements: fixedElements },
         agent_id: agent_id || null,
-        is_active: false,
-        workspace_id: workspaceId,
+        is_active: true,
+        business_id: businessId,
         created_by: userId,
       })
       .select()

@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
-import { getWorkspaceOpenAIClient } from '@/lib/openai/workspace-client';
+import { getBusinessContext } from '@/lib/queries/helpers';
+import { getBusinessOpenAIClient } from '@/lib/openai/workspace-client';
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
 
     const { data, error } = await supabase
       .from('audit_reports')
       .select('*')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId, userId } = await getWorkspaceContext(supabase);
+    const { businessId, userId } = await getBusinessContext(supabase);
     const body = await request.json();
     const { date_from, date_to } = body;
 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const { data: logs } = await supabase
       .from('audit_logs')
       .select('action, resource_type, created_at, profiles(display_name)')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .gte('created_at', date_from)
       .lte('created_at', date_to)
       .order('created_at', { ascending: false })
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const { data: costs } = await supabase
       .from('cost_entries')
       .select('cost_usd, tokens_prompt, tokens_completion, model_id')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .gte('created_at', date_from)
       .lte('created_at', date_to);
 
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     // Generate summary with OpenAI
     let summary = '';
     try {
-      const { client } = await getWorkspaceOpenAIClient();
+      const { client } = await getBusinessOpenAIClient();
       const completion = await client.chat.completions.create({
         model: 'gpt-4o-mini',
         temperature: 0.3,
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     const { data: report, error } = await supabase
       .from('audit_reports')
       .insert({
-        workspace_id: workspaceId,
+        business_id: businessId,
         report_type: 'manual',
         date_from,
         date_to,

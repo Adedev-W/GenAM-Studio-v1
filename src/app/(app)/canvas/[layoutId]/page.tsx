@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Save, Plus, Trash2, GripVertical,
+  ArrowLeft, Save, Plus, Trash2, GripVertical, Settings2,
   Type, Image, MousePointer, Table, BarChart3, FileInput,
   LayoutGrid, List, ToggleLeft, AlertCircle, Minus, ChevronDown,
   Code2, Loader2, CheckCircle, Sparkles, Star, Hash, Bot,
@@ -14,13 +14,18 @@ import { WidgetPreview } from "@/components/widgets/widget-preview";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
+import { useApiError } from "@/hooks/use-api-error";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { apiFetch } from "@/lib/api";
 
 // ─── Widget Registry ───────────────────────────────────────────────
 const WIDGET_GROUPS = [
@@ -36,7 +41,7 @@ const WIDGET_GROUPS = [
   {
     label: "Aksi",
     items: [
-      { type: "button", label: "Tombol", icon: MousePointer, defaultProps: { text: "Klik di sini", variant: "default", size: "default", href: "" } },
+      { type: "button", label: "Tombol", icon: MousePointer, defaultProps: { text: "Klik di sini", variant: "default", size: "default", action: { type: "message", payload: "" } } },
       { type: "toggle", label: "Toggle", icon: ToggleLeft, defaultProps: { label: "Aktifkan fitur", checked: false, description: "" } },
       { type: "input", label: "Input", icon: FileInput, defaultProps: { placeholder: "Masukkan nilai...", label: "Field", type: "text", required: false } },
       { type: "select", label: "Pilihan", icon: ChevronDown, defaultProps: { label: "Pilih opsi", options: "Opsi 1\nOpsi 2\nOpsi 3", placeholder: "Pilih..." } },
@@ -105,7 +110,7 @@ function PropsEditor({ element, onChange }: { element: any; onChange: (props: Re
           <SelectContent>{opts.map(o => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}</SelectContent>
         </Select>
       ) : type === "number" ? (
-        <Input type="number" value={element.props[key] ?? 0} onChange={e => update(key, parseFloat(e.target.value))} className="h-8 text-xs" />
+        <NumberInput value={element.props[key] ?? 0} onChange={e => update(key, parseFloat(e.target.value))} className="h-8 text-xs" />
       ) : (
         <Input value={element.props[key] ?? ""} onChange={e => update(key, e.target.value)} className="h-8 text-xs" />
       )}
@@ -117,7 +122,42 @@ function PropsEditor({ element, onChange }: { element: any; onChange: (props: Re
     case "heading": return <div className="space-y-3">{field("Teks", "content")}{field("Level", "level", "select", ["h1", "h2", "h3", "h4"])}</div>;
     case "badge": return <div className="space-y-3">{field("Teks", "text")}{field("Warna", "color", "select", ["default", "blue", "green", "amber", "red", "purple"])}</div>;
     case "separator": return <div className="space-y-3">{field("Label (opsional)", "label")}</div>;
-    case "button": return <div className="space-y-3">{field("Teks", "text")}{field("Varian", "variant", "select", ["default", "outline", "ghost", "destructive", "secondary"])}{field("Ukuran", "size", "select", ["sm", "default", "lg"])}{field("Link (href)", "href")}</div>;
+    case "button": {
+      const action = element.props.action || { type: "message", payload: "" };
+      const updateAction = (key: string, value: string) => {
+        onChange({ ...element.props, action: { ...action, [key]: value } });
+      };
+      const actionLabels: Record<string, string> = { message: "Kirim Pesan", order: "Mulai Pesanan", link: "Buka Link", contact: "WhatsApp" };
+      const payloadLabels: Record<string, string> = { message: "Teks pesan yang dikirim", order: "", link: "URL (https://...)", contact: "Nomor WA (628xxx)" };
+      return (
+        <div className="space-y-3">
+          {field("Teks", "text")}
+          {field("Varian", "variant", "select", ["default", "outline", "ghost", "destructive", "secondary"])}
+          {field("Ukuran", "size", "select", ["sm", "default", "lg"])}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Aksi Tombol</label>
+            <select
+              value={action.type || "message"}
+              onChange={e => updateAction("type", e.target.value)}
+              className="w-full h-8 text-xs rounded-md border border-input bg-background px-2"
+            >
+              {Object.entries(actionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          {action.type !== "order" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">{payloadLabels[action.type] || "Payload"}</label>
+              <input
+                value={action.payload || ""}
+                onChange={e => updateAction("payload", e.target.value)}
+                placeholder={payloadLabels[action.type] || ""}
+                className="w-full h-8 text-xs rounded-md border border-input bg-background px-2"
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
     case "toggle": return <div className="space-y-3">{field("Label", "label")}{field("Deskripsi", "description")}{field("Status awal", "checked", "boolean")}</div>;
     case "input": return <div className="space-y-3">{field("Label", "label")}{field("Placeholder", "placeholder")}{field("Tipe", "type", "select", ["text", "email", "number", "password", "url"])}{field("Wajib diisi", "required", "boolean")}</div>;
     case "select": return <div className="space-y-3">{field("Label", "label")}{field("Placeholder", "placeholder")}{field("Opsi (satu per baris)", "options", "textarea")}</div>;
@@ -144,8 +184,11 @@ export default function CanvasEditorPage() {
   const params = useParams();
   const layoutId = params.layoutId as string;
   const { toast } = useToast();
+  const { error: apiError, handleError, clearError } = useApiError();
 
   const [layout, setLayout] = useState<any>(null);
+  const [canvasName, setCanvasName] = useState("");
+  const [canvasDescription, setCanvasDescription] = useState("");
   const [elements, setElements] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -157,31 +200,31 @@ export default function CanvasEditorPage() {
   const [schemaText, setSchemaText] = useState("");
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const schemaEditingRef = useRef(false);
+  const [mobilePanel, setMobilePanel] = useState<'palette' | 'inspector' | null>(null);
 
   const selected = elements.find(e => e.id === selectedId);
 
   // Load canvas
   useEffect(() => {
-    fetch(`/api/canvas/${layoutId}`)
-      .then(r => r.json())
+    apiFetch(`/api/canvas/${layoutId}`)
       .then(data => {
-        if (!data.error) {
-          setLayout(data);
-          const raw = Array.isArray(data.layout_json?.elements) ? data.layout_json.elements : [];
-          const els = raw.map((el: any) => ({
-            ...el,
-            label: typeof el.label === 'string' ? el.label : (el.label != null ? JSON.stringify(el.label) : ''),
-            props: Object.fromEntries(
-              Object.entries(el.props || {}).map(([k, v]) => [k, typeof v === 'object' && v !== null ? JSON.stringify(v) : v])
-            ),
-          }));
-          setElements(els);
-          setSchemaText(JSON.stringify(els, null, 2));
-        }
+        setLayout(data);
+        setCanvasName(data.name || "");
+        setCanvasDescription(data.description || "");
+        const raw = Array.isArray(data.layout_json?.elements) ? data.layout_json.elements : [];
+        const els = raw.map((el: any) => ({
+          ...el,
+          label: typeof el.label === 'string' ? el.label : (el.label != null ? JSON.stringify(el.label) : ''),
+          props: Object.fromEntries(
+            Object.entries(el.props || {}).map(([k, v]) => [k, typeof v === 'object' && v !== null ? JSON.stringify(v) : v])
+          ),
+        }));
+        setElements(els);
+        setSchemaText(JSON.stringify(els, null, 2));
       })
-      .catch(() => {})
+      .catch(handleError)
       .finally(() => setLoading(false));
-  }, [layoutId]);
+  }, [layoutId, handleError]);
 
   // Sync elements → schemaText (only when elements change from non-schema source)
   useEffect(() => {
@@ -246,14 +289,18 @@ export default function CanvasEditorPage() {
 
   const saveLayout = async () => {
     setSaving(true);
-    await fetch(`/api/canvas/${layoutId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ elements, is_active: true }),
-    }).catch(() => {});
+    try {
+      await apiFetch(`/api/canvas/${layoutId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements, name: canvasName, description: canvasDescription, is_active: true }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      handleError(err);
+    }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
   const copyCanvasId = () => {
@@ -268,31 +315,144 @@ export default function CanvasEditorPage() {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] gap-0">
+    <div className="flex flex-col h-[calc(100dvh-2rem)] gap-0">
       {/* Top bar */}
-      <div className="flex items-center gap-3 pb-3 border-b border-border/50 mb-4 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 pb-3 border-b border-border/50 mb-4 shrink-0">
         <Link href="/canvas">
           <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-semibold truncate">{layout?.name || "Canvas Editor"}</h1>
-          <p className="text-xs text-muted-foreground font-light">{elements.length} widget{elements.length !== 1 ? "s" : ""}</p>
+        <div className="flex-1 min-w-0 space-y-0.5">
+          <Input
+            value={canvasName}
+            onChange={e => setCanvasName(e.target.value)}
+            placeholder="Nama canvas..."
+            className="h-7 text-sm font-semibold border-none bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <Input
+            value={canvasDescription}
+            onChange={e => setCanvasDescription(e.target.value)}
+            placeholder="Deskripsi canvas..."
+            className="h-6 text-xs text-muted-foreground font-light border-none bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0 hidden sm:block"
+          />
         </div>
         <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={copyCanvasId}>
           <Copy className="h-3.5 w-3.5" />
-          Salin ID
+          <span className="hidden sm:inline">Salin ID</span>
         </Button>
         <Button variant="ghost" size="sm" className="h-8 bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary" onClick={saveLayout} disabled={saving}>
           {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : saved ? <CheckCircle className="mr-1.5 h-3.5 w-3.5 text-emerald-400" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
-          {saved ? "Tersimpan!" : "Simpan"}
+          <span className="hidden sm:inline">{saved ? "Tersimpan!" : "Simpan"}</span>
         </Button>
       </div>
 
-      {/* Main layout: palette(2) | canvas(6) | inspector(4) */}
-      <div className="grid grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
+      {apiError && <ErrorAlert error={apiError} onDismiss={clearError} className="mb-4" />}
 
-        {/* Widget palette */}
-        <div className="col-span-2 overflow-y-auto pr-1 space-y-4">
+      {/* Mobile floating buttons */}
+      <div className="flex gap-2 mb-3 lg:hidden shrink-0">
+        <Sheet open={mobilePanel === 'palette'} onOpenChange={open => setMobilePanel(open ? 'palette' : null)}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 flex-1 gap-1.5">
+              <Plus className="h-4 w-4" /> Tambah Widget
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="text-sm">Widget Palette</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 mt-4">
+              {WIDGET_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">{group.label}</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                    {group.items.map(item => (
+                      <button
+                        key={item.type}
+                        onClick={() => { addWidget(item.type); setMobilePanel(null); }}
+                        className="flex flex-col items-center gap-1 p-3 rounded-lg border border-border/30 hover:border-primary/40 hover:bg-primary/5 transition-colors text-center group"
+                      >
+                        <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-xs text-muted-foreground group-hover:text-foreground leading-tight">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+        <Sheet open={mobilePanel === 'inspector'} onOpenChange={open => setMobilePanel(open ? 'inspector' : null)}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 flex-1 gap-1.5">
+              <Settings2 className="h-4 w-4" /> Inspector
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="text-sm">Inspector</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <Tabs value={inspectorTab} onValueChange={setInspectorTab}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="preview" className="flex-1 text-xs">Preview</TabsTrigger>
+                  <TabsTrigger value="schema" className="flex-1 text-xs">Schema</TabsTrigger>
+                  <TabsTrigger value="props" className="flex-1 text-xs">Properti</TabsTrigger>
+                </TabsList>
+                <TabsContent value="props" className="mt-3">
+                  {selected ? (
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Label Widget</Label>
+                        <Input value={selected.label} onChange={e => updateLabel(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                      <Separator />
+                      <PropsEditor element={selected} onChange={updateProps} />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-24 text-center">
+                      <p className="text-xs text-muted-foreground">Klik widget di canvas untuk edit</p>
+                    </div>
+                  )}
+                </TabsContent>
+                <TabsContent value="preview" className="mt-3">
+                  <div className="rounded-xl border border-border/50 bg-card overflow-hidden">
+                    <div className="p-4 space-y-3">
+                      {elements.length === 0 ? (
+                        <p className="text-xs text-center text-muted-foreground py-8">Canvas kosong</p>
+                      ) : elements.map(el => (
+                        <div key={el.id}>
+                          {el.label && <p className="text-xs text-muted-foreground/60 mb-1 font-medium">{el.label}</p>}
+                          <WidgetPreview type={el.type} props={el.props} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="schema" className="mt-3">
+                  <Textarea
+                    value={schemaText}
+                    onChange={e => handleSchemaEdit(e.target.value)}
+                    rows={12}
+                    className="text-xs font-mono resize-none"
+                    spellCheck={false}
+                    placeholder="[]"
+                  />
+                  {schemaError ? (
+                    <p className="text-xs text-red-500 mt-2">{schemaError}</p>
+                  ) : (
+                    <p className="text-xs text-emerald-600 mt-2">JSON valid — {elements.length} element{elements.length !== 1 ? "s" : ""}</p>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Main layout: palette(2) | canvas(6) | inspector(4) */}
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
+
+        {/* Widget palette — hidden on mobile, use Sheet instead */}
+        <div className="hidden lg:block lg:col-span-2 overflow-y-auto pr-1 space-y-4">
           {WIDGET_GROUPS.map(group => (
             <div key={group.label}>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">{group.label}</p>
@@ -313,7 +473,7 @@ export default function CanvasEditorPage() {
         </div>
 
         {/* Canvas editor */}
-        <div className="col-span-6 overflow-y-auto">
+        <div className="flex-1 lg:col-span-6 overflow-y-auto min-h-[200px]">
           <div className="min-h-full rounded-xl border border-dashed border-border/50 bg-muted/10 p-4">
             {elements.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -369,8 +529,8 @@ export default function CanvasEditorPage() {
           </div>
         </div>
 
-        {/* Inspector panel (tabbed) */}
-        <div className="col-span-4 overflow-y-auto flex flex-col gap-3">
+        {/* Inspector panel (tabbed) — hidden on mobile, use Sheet instead */}
+        <div className="hidden lg:flex lg:col-span-4 overflow-y-auto flex-col gap-3">
           <Tabs value={inspectorTab} onValueChange={setInspectorTab} className="flex-1 flex flex-col">
             <TabsList className="w-full shrink-0">
               <TabsTrigger value="preview" className="flex-1 text-xs">Preview</TabsTrigger>

@@ -43,5 +43,35 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Business & onboarding redirect
+  const skipChecks = ['/onboarding', '/pilih-bisnis', '/buat-bisnis', '/akun', '/settings', '/api/'];
+  const needsCheck = user
+    && !skipChecks.some(p => request.nextUrl.pathname.startsWith(p))
+    && !isPublic;
+
+  if (needsCheck) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('active_business_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.active_business_id) {
+        // No active business — check if user has any businesses
+        const { count: memberCount } = await supabase
+          .from('business_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        const url = request.nextUrl.clone();
+        url.pathname = (memberCount ?? 0) > 0 ? '/pilih-bisnis' : '/onboarding';
+        return NextResponse.redirect(url);
+      }
+    } catch {
+      // Silently ignore check errors
+    }
+  }
+
   return supabaseResponse;
 }

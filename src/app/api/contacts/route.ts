@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 import { triggerWorkflows } from '@/lib/workflows/engine';
 
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search');
     const tag = searchParams.get('tag');
@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     let query = supabase
       .from('contacts')
       .select('*')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .order('last_seen_at', { ascending: false });
 
     if (search) {
@@ -35,12 +35,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const body = await req.json();
 
     const { data, error } = await supabase
       .from('contacts')
-      .insert({ ...body, workspace_id: workspaceId })
+      .insert({ ...body, business_id: businessId })
       .select()
       .single();
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     // Trigger automasi: new_customer
     triggerWorkflows({
       type: 'new_customer',
-      workspaceId,
+      businessId,
       data: {
         id: data.id,
         display_name: data.display_name,

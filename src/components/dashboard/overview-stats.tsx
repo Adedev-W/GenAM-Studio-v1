@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Bot, Users, ShoppingBag, Clock } from "lucide-react";
+import { Banknote, Users, ShoppingBag, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 function fmtRupiah(n: number) {
   if (n >= 1_000_000) return `Rp${(n / 1_000_000).toFixed(1)}jt`;
@@ -22,22 +24,31 @@ interface Stats {
 
 export function OverviewStats() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetch('/api/dashboard/stats')
-      .then(r => r.json())
-      .then(data => { if (!data.error) setStats(data); })
-      .catch(() => {});
-  }, []);
+    const fetchStats = () => {
+      apiFetch<Stats>('/api/dashboard/stats')
+        .then(data => setStats(data))
+        .catch((err) => {
+          if (err && typeof err === 'object' && 'title' in err) {
+            toast({ title: err.title, description: err.message, variant: "destructive" });
+          }
+        });
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval);
+  }, [toast]);
 
   const items = [
     {
-      label: "Total Agents",
-      value: stats ? (stats.totalAgents ?? 0).toString() : "—",
-      sub: stats ? `${stats.activeAgents ?? 0} aktif` : "loading...",
-      icon: Bot,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
+      label: "Pendapatan Hari Ini",
+      value: stats ? fmtRupiah(stats.todayRevenue ?? 0) : "—",
+      sub: stats ? `${stats.todayOrderCount ?? 0} pesanan` : "loading...",
+      icon: Banknote,
+      color: "text-emerald-500",
+      bg: "bg-emerald-500/10",
     },
     {
       label: "Pelanggan",

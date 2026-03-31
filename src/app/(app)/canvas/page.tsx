@@ -19,6 +19,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/common/page-header";
 import { useToast } from "@/hooks/use-toast";
+import { useApiError } from "@/hooks/use-api-error";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { apiFetch } from "@/lib/api";
 
 const CANVAS_TEMPLATES = [
   {
@@ -98,34 +101,40 @@ export default function CanvasPage() {
   const [generateAgentId, setGenerateAgentId] = useState("none");
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const { error, handleError, clearError } = useApiError();
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/canvas').then(r => r.json()),
-      fetch('/api/agents').then(r => r.json()),
+      apiFetch('/api/canvas'),
+      apiFetch('/api/agents'),
     ]).then(([c, a]) => {
       setLayouts(Array.isArray(c) ? c : []);
       setAgents(Array.isArray(a) ? a : []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    }).catch(handleError).finally(() => setLoading(false));
+  }, [handleError]);
 
   async function createLayout() {
-    const res = await fetch('/api/canvas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, agent_id: form.agent_id || null, is_active: false, elements: [] }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch('/api/canvas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, agent_id: form.agent_id || null, is_active: false, elements: [] }),
+      });
       setLayouts(prev => [data, ...prev]);
       setCreateOpen(false);
       setForm({ name: '', description: '', agent_id: '' });
+    } catch (err) {
+      handleError(err);
     }
   }
 
   async function deleteLayout(id: string) {
-    await fetch(`/api/canvas/${id}`, { method: 'DELETE' });
-    setLayouts(prev => prev.filter(l => l.id !== id));
+    try {
+      await apiFetch(`/api/canvas/${id}`, { method: 'DELETE' });
+      setLayouts(prev => prev.filter(l => l.id !== id));
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async function handleGenerate() {
@@ -144,26 +153,27 @@ export default function CanvasPage() {
       const data = await res.json();
       window.location.href = `/canvas/${data.id}`;
     } catch (err: any) {
-      toast({ title: "Gagal generate", description: err.message, variant: "destructive" });
+      handleError(err);
     } finally {
       setGenerating(false);
     }
   }
 
   async function createFromTemplate(template: typeof CANVAS_TEMPLATES[0]) {
-    const res = await fetch('/api/canvas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: template.name,
-        description: template.description,
-        elements: template.elements,
-        is_active: false,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch('/api/canvas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: template.name,
+          description: template.description,
+          elements: template.elements,
+          is_active: false,
+        }),
+      });
       window.location.href = `/canvas/${data.id}`;
+    } catch (err) {
+      handleError(err);
     }
   }
 
@@ -217,6 +227,8 @@ export default function CanvasPage() {
         ))}
       </div>
 
+      {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" className="bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary" onClick={() => setCreateOpen(true)}>
@@ -236,7 +248,7 @@ export default function CanvasPage() {
               placeholder="Cari canvas..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 w-[180px] text-xs"
+              className="pl-8 h-8 w-full sm:w-[180px] text-xs"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>

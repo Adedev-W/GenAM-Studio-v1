@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useApiError } from "@/hooks/use-api-error";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; bg: string }> = {
@@ -51,17 +54,19 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
   const { toast } = useToast();
+  const { error, handleError, clearError } = useApiError();
   const router = useRouter();
   const supabase = createClient();
 
   const fetchOrders = useCallback(async () => {
-    const res = await fetch(`/api/orders?status=${tab}`);
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch(`/api/orders?status=${tab}`);
       setOrders(data);
+    } catch (err) {
+      handleError(err);
     }
     setLoading(false);
-  }, [tab]);
+  }, [tab, handleError]);
 
   useEffect(() => { setLoading(true); fetchOrders(); }, [fetchOrders]);
 
@@ -79,16 +84,16 @@ export default function OrdersPage() {
 
   const updateStatus = async (orderId: string, status: string) => {
     setUpdating(orderId);
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
+    try {
+      await apiFetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
       toast({ title: `Status diperbarui ke "${STATUS_CONFIG[status]?.label}"` });
       fetchOrders();
-    } else {
-      toast({ title: "Gagal update status", variant: "destructive" });
+    } catch (err) {
+      handleError(err);
     }
     setUpdating(null);
   };
@@ -140,6 +145,8 @@ export default function OrdersPage() {
           <Plus className="mr-1.5 h-4 w-4" /> Buat Pesanan
         </Button>
       </div>
+
+      {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
 
       {/* Search */}
       <div className="relative">
@@ -244,7 +251,7 @@ export default function OrdersPage() {
                           key={a.newStatus}
                           size="sm"
                           variant={a.variant}
-                          className="text-xs h-7 px-3"
+                          className="text-xs h-9 sm:h-7 px-3"
                           disabled={updating === order.id}
                           onClick={(e) => { e.stopPropagation(); updateStatus(order.id, a.newStatus); }}
                         >
@@ -253,12 +260,12 @@ export default function OrdersPage() {
                       ))}
                       {order.conversation_id && (
                         <Button size="sm" variant="ghost" className="text-xs h-7 px-2 ml-auto" asChild>
-                          <Link href={`/chat/${order.conversation_id}`}>
+                          <Link href={`/orders/${order.id}/chat`}>
                             <MessageSquare className="h-3 w-3 mr-1" /> Chat
                           </Link>
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" className="text-xs h-7 px-2" asChild>
+                      <Button size="sm" variant="ghost" className="text-xs h-9 sm:h-7 px-3 sm:px-2" asChild>
                         <Link href={`/orders/${order.id}`}>
                           Detail <ArrowRight className="h-3 w-3 ml-1" />
                         </Link>
@@ -266,7 +273,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                   {actions.length === 0 && (
-                    <Button size="sm" variant="ghost" className="text-xs h-7 px-2" asChild>
+                    <Button size="sm" variant="ghost" className="text-xs h-9 sm:h-7 px-3 sm:px-2" asChild>
                       <Link href={`/orders/${order.id}`}>
                         Lihat Detail <ArrowRight className="h-3 w-3 ml-1" />
                       </Link>

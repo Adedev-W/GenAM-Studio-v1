@@ -1,11 +1,11 @@
-import { getWorkspaceOpenAIClient } from '@/lib/openai/workspace-client';
+import { getBusinessOpenAIClient } from '@/lib/openai/workspace-client';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
     const { messages, model = 'gpt-4o', temperature = 0.7, max_tokens = 4096, system_prompt } = await request.json();
 
-    const { client: openai } = await getWorkspaceOpenAIClient();
+    const { client: openai } = await getBusinessOpenAIClient();
 
     const systemMessages = system_prompt
       ? [{ role: 'system' as const, content: system_prompt }]
@@ -36,7 +36,11 @@ export async function POST(request: Request) {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   } catch (error: any) {
-    const status = error.message?.includes('not configured') ? 400 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    const isNotConfigured = error.message?.includes('not configured');
+    const status = isNotConfigured ? 503 : 500;
+    return NextResponse.json(
+      { error: error.message, ...(isNotConfigured && { code: "API_KEY_NOT_CONFIGURED" }) },
+      { status }
+    );
   }
 }

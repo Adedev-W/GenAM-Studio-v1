@@ -12,11 +12,26 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/common/page-header";
 import { EmptyState } from "@/components/common/empty-state";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { useApiError } from "@/hooks/use-api-error";
+import { apiFetch } from "@/lib/api";
 import { SegmentedTokenBar } from "@/components/dashboard/segmented-token-bar";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from "recharts";
+  ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+
+const dailyChartConfig = {
+  tokensPrompt: {
+    label: "Prompt",
+    color: "hsl(var(--chart-1))",
+  },
+  tokensCompletion: {
+    label: "Completion",
+    color: "hsl(var(--chart-2))",
+  },
+} satisfies ChartConfig;
 
 function fmt(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -49,21 +64,34 @@ export default function UsagePage() {
   const [range, setRange] = useState("30");
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { error, handleError, clearError } = useApiError();
 
   useEffect(() => {
+    const fetchData = () => {
+      apiFetch<UsageData>(`/api/usage?days=${range}`)
+        .then((d) => setData(d))
+        .catch(handleError)
+        .finally(() => setLoading(false));
+    };
     setLoading(true);
-    fetch(`/api/usage?days=${range}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [range]);
+    fetchData();
+    const interval = setInterval(fetchData, 30_000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, [range, handleError]);
 
   const limitPct = useMemo(() => {
     if (!data?.workspaceLimit) return 0;
     const { limit, used } = data.workspaceLimit;
-    return limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+    return limit > 0 ? (used / limit) * 100 : 0;
   }, [data]);
+
+  const limitStatus = useMemo(() => {
+    if (!data?.workspaceLimit) return null;
+    const alertPct = data.workspaceLimit.alertPct || 80;
+    if (limitPct >= 100) return { label: "Limit tercapai!", color: "text-red-500", barColor: "[&>div]:bg-red-500" };
+    if (limitPct >= alertPct) return { label: "Mendekati limit!", color: "text-amber-500", barColor: "[&>div]:bg-amber-500" };
+    return { label: null, color: "", barColor: "" };
+  }, [limitPct, data]);
 
   if (loading) {
     return (
@@ -81,6 +109,7 @@ export default function UsagePage() {
             <Link href="/usage/limits"><Settings2 className="mr-2 h-4 w-4" /> Atur Limit</Link>
           </Button>
         </PageHeader>
+        {error && <ErrorAlert error={error} onDismiss={clearError} className="mb-4" />}
         <EmptyState
           icon={Activity}
           title="Belum ada data penggunaan"
@@ -130,13 +159,16 @@ export default function UsagePage() {
               </span>
             </div>
             <Progress
-              value={limitPct}
-              className={`h-2 ${limitPct >= data.workspaceLimit.alertPct ? "[&>div]:bg-amber-500" : ""}`}
+              value={Math.min(limitPct, 100)}
+              className={`h-2 ${limitStatus?.barColor || ""}`}
             />
             <p className="text-xs text-muted-foreground mt-1.5">
-              {limitPct.toFixed(0)}% terpakai bulan ini
-              {limitPct >= data.workspaceLimit.alertPct && (
-                <span className="text-amber-500 ml-2">Mendekati limit!</span>
+              {limitPct >= 100
+                ? `${limitPct.toFixed(0)}% — melebihi limit`
+                : `${limitPct.toFixed(0)}% terpakai bulan ini`
+              }
+              {limitStatus?.label && (
+                <span className={`${limitStatus.color} ml-2 font-medium`}>{limitStatus.label}</span>
               )}
             </p>
           </CardContent>
@@ -163,7 +195,7 @@ export default function UsagePage() {
             iconColor: "text-violet-500",
           },
           {
-            label: "Completion",
+            label: "Completion ",
             value: fmt(data.totalCompletion),
             sub: `${((data.totalCompletion / data.totalTokens) * 100).toFixed(0)}% dari total`,
             icon: ArrowDownRight,
@@ -207,74 +239,57 @@ export default function UsagePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="pb-3">
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={data.dailyData}>
+            <ChartContainer config={dailyChartConfig} className="min-h-[220px] w-full">
+              <AreaChart data={data.dailyData} accessibilityLayer>
                 <defs>
                   <linearGradient id="promptGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--color-tokensPrompt)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--color-tokensPrompt)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="completionGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                    <stop offset="0%" stopColor="var(--color-tokensCompletion)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--color-tokensCompletion)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                <CartesianGrid vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickFormatter={fmtDate}
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   tickLine={false}
                   axisLine={false}
+                  tickMargin={8}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                   tickLine={false}
                   axisLine={false}
                   width={50}
                   tickFormatter={fmt}
                 />
-                <Tooltip
-                  formatter={(v: any, name: string) => [
-                    fmt(Number(v)),
-                    name === "tokensPrompt" ? "Prompt" : "Completion",
-                  ]}
-                  labelFormatter={fmtDate}
-                  contentStyle={{
-                    fontSize: 12,
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                  }}
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      indicator="dot"
+                      labelFormatter={fmtDate}
+                    />
+                  }
                 />
+                <ChartLegend content={<ChartLegendContent />} />
                 <Area
                   type="monotone"
                   dataKey="tokensPrompt"
-                  stroke="hsl(var(--chart-1))"
+                  stroke="var(--color-tokensPrompt)"
                   fill="url(#promptGrad)"
                   strokeWidth={2}
-                  name="tokensPrompt"
                 />
                 <Area
                   type="monotone"
                   dataKey="tokensCompletion"
-                  stroke="hsl(var(--chart-2))"
+                  stroke="var(--color-tokensCompletion)"
                   fill="url(#completionGrad)"
                   strokeWidth={2}
-                  name="tokensCompletion"
                 />
               </AreaChart>
-            </ResponsiveContainer>
-            <div className="flex items-center justify-center gap-4 mt-2">
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full" style={{ background: "hsl(var(--chart-1))" }} />
-                <span className="text-xs text-muted-foreground">Prompt</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full" style={{ background: "hsl(var(--chart-2))" }} />
-                <span className="text-xs text-muted-foreground">Completion</span>
-              </div>
-            </div>
+            </ChartContainer>
           </CardContent>
         </Card>
 

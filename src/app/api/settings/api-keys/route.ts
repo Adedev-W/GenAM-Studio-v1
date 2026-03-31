@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 import OpenAI from 'openai';
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    const ctx = await getWorkspaceContext(supabase);
+    const ctx = await getBusinessContext(supabase);
 
     const { data: workspace } = await supabase
-      .from('workspaces')
+      .from('businesses')
       .select('settings')
-      .eq('id', ctx.workspaceId)
+      .eq('id', ctx.businessId)
       .single();
 
     const apiKey: string | undefined = workspace?.settings?.openai_api_key;
@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const ctx = await getWorkspaceContext(supabase);
+    const ctx = await getBusinessContext(supabase);
 
     const { openai_api_key } = await request.json();
     if (!openai_api_key || typeof openai_api_key !== 'string') {
@@ -44,16 +44,16 @@ export async function POST(request: Request) {
 
     // Fetch current settings and merge
     const { data: workspace } = await supabase
-      .from('workspaces')
+      .from('businesses')
       .select('settings')
-      .eq('id', ctx.workspaceId)
+      .eq('id', ctx.businessId)
       .single();
 
     const currentSettings = workspace?.settings || {};
     const { error } = await supabase
-      .from('workspaces')
+      .from('businesses')
       .update({ settings: { ...currentSettings, openai_api_key } })
-      .eq('id', ctx.workspaceId);
+      .eq('id', ctx.businessId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -66,19 +66,19 @@ export async function POST(request: Request) {
 export async function DELETE() {
   try {
     const supabase = await createClient();
-    const ctx = await getWorkspaceContext(supabase);
+    const ctx = await getBusinessContext(supabase);
 
     const { data: workspace } = await supabase
-      .from('workspaces')
+      .from('businesses')
       .select('settings')
-      .eq('id', ctx.workspaceId)
+      .eq('id', ctx.businessId)
       .single();
 
     const { openai_api_key: _removed, ...rest } = workspace?.settings || {};
     const { error } = await supabase
-      .from('workspaces')
+      .from('businesses')
       .update({ settings: rest })
-      .eq('id', ctx.workspaceId);
+      .eq('id', ctx.businessId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

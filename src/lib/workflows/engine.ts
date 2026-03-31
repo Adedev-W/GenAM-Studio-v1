@@ -4,7 +4,7 @@ type TriggerType = 'order_created' | 'order_status_changed' | 'chat_keyword' | '
 
 interface TriggerEvent {
   type: TriggerType;
-  workspaceId: string;
+  businessId: string;
   data: Record<string, any>;
 }
 
@@ -23,11 +23,11 @@ export async function triggerWorkflows(event: TriggerEvent): Promise<void> {
   try {
     const supabase = createServiceSupabase();
 
-    // Find active workflows matching this trigger type and workspace
+    // Find active workflows matching this trigger type and business
     const { data: workflows, error } = await supabase
       .from('workflows')
       .select('*')
-      .eq('workspace_id', event.workspaceId)
+      .eq('business_id', event.businessId)
       .eq('is_active', true)
       .eq('trigger_type', event.type);
 
@@ -36,7 +36,7 @@ export async function triggerWorkflows(event: TriggerEvent): Promise<void> {
       return;
     }
     if (!workflows || workflows.length === 0) {
-      console.log(`[WorkflowEngine] No active workflows for type=${event.type} workspace=${event.workspaceId}`);
+      console.log(`[WorkflowEngine] No active workflows for type=${event.type} business=${event.businessId}`);
       return;
     }
     console.log(`[WorkflowEngine] Found ${workflows.length} workflow(s) for type=${event.type}`);
@@ -310,7 +310,7 @@ async function logExecution(
 ) {
   const { error: logError } = await supabase.from('workflow_logs').insert({
     workflow_id: wf.id,
-    workspace_id: event.workspaceId,
+    business_id: event.businessId,
     trigger_data: { type: event.type, data: event.data },
     condition_met: conditionMet,
     action_result: result || {},

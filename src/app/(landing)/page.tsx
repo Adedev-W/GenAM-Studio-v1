@@ -1,288 +1,26 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Bot, MessageSquare, Layout, Zap, Shield, BarChart3,
-  ArrowRight, ChevronRight, Sparkles, Globe,
-  Check, Play, Send, Eye,
+  ArrowRight, ChevronRight, Sparkles,
+  Play, Eye,
 } from "lucide-react";
 import { AppLogo } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { WorkflowAnimation } from "./components/workflow-animation";
+import { ChatPreview } from "./components/chat-preview";
 
-/* ─── Workflow Animation ─── */
-const WORKFLOW_STEPS = [
-  {
-    id: "build",
-    icon: Bot,
-    label: "Buat Agent",
-    desc: "Konfigurasi persona, model AI, dan knowledge base agent kamu",
-    color: "from-blue-500 to-blue-600",
-    demo: {
-      title: "Agent: CS Toko Risol",
-      lines: [
-        { k: "Model", v: "GPT-4o Mini" },
-        { k: "Persona", v: "Ramah, bahasa Indonesia casual" },
-        { k: "Knowledge", v: "Katalog produk, harga, stok" },
-      ],
-    },
+export const metadata: Metadata = {
+  title: "GenAM Studio — Platform AI Agent untuk UMKM Indonesia",
+  description:
+    "Buat chatbot AI yang paham produk kamu, tampilkan katalog visual interaktif, dan layani pelanggan 24/7 — tanpa coding. Platform AI agent untuk UMKM Indonesia.",
+  alternates: {
+    canonical: "https://genam.studio",
   },
-  {
-    id: "equip",
-    icon: Layout,
-    label: "Pasang Canvas",
-    desc: "Hubungkan UI visual interaktif — menu, katalog, price list",
-    color: "from-violet-500 to-violet-600",
-    demo: {
-      title: "Canvas: Katalog Produk",
-      lines: [
-        { k: "Widget", v: "List, Image, Card, Table" },
-        { k: "Data", v: "5 produk + foto + harga" },
-        { k: "Status", v: "Aktif & terhubung ke agent" },
-      ],
-    },
-  },
-  {
-    id: "deploy",
-    icon: Globe,
-    label: "Deploy & Bagikan",
-    desc: "Dapatkan link chat publik, embed di website atau WhatsApp",
-    color: "from-emerald-500 to-emerald-600",
-    demo: {
-      title: "Chat Link Aktif",
-      lines: [
-        { k: "URL", v: "studio.app/c/toko-risol" },
-        { k: "Visitor", v: "127 hari ini" },
-        { k: "Respons", v: "< 2 detik rata-rata" },
-      ],
-    },
-  },
-  {
-    id: "monitor",
-    icon: BarChart3,
-    label: "Pantau & Optimasi",
-    desc: "Lacak token usage, percakapan, dan performa real-time",
-    color: "from-amber-500 to-amber-600",
-    demo: {
-      title: "Dashboard Usage",
-      lines: [
-        { k: "Token Hari Ini", v: "24.5K" },
-        { k: "Request", v: "89 percakapan" },
-        { k: "Satisfaction", v: "96% positif" },
-      ],
-    },
-  },
-];
+};
 
-function WorkflowAnimation() {
-  const [active, setActive] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const DURATION = 4000;
-    const TICK = 50;
-    let elapsed = 0;
-
-    intervalRef.current = setInterval(() => {
-      elapsed += TICK;
-      setProgress((elapsed / DURATION) * 100);
-      if (elapsed >= DURATION) {
-        elapsed = 0;
-        setActive((prev) => (prev + 1) % WORKFLOW_STEPS.length);
-        setProgress(0);
-      }
-    }, TICK);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  const step = WORKFLOW_STEPS[active];
-
-  return (
-    <div className="w-full max-w-3xl mx-auto">
-      {/* Step indicators */}
-      <div className="flex items-center justify-between mb-8 px-2">
-        {WORKFLOW_STEPS.map((s, i) => (
-          <button
-            key={s.id}
-            onClick={() => { setActive(i); setProgress(0); }}
-            className="flex flex-col items-center gap-2 group flex-1"
-          >
-            <div className="relative flex items-center justify-center w-12 h-12">
-              <div className={`
-                absolute inset-0 rounded-2xl transition-all duration-500
-                ${i === active
-                  ? `bg-gradient-to-br ${s.color} shadow-lg`
-                  : i < active
-                    ? "bg-primary/20"
-                    : "bg-muted"
-                }
-              `} />
-              <s.icon className={`relative h-5 w-5 ${i === active ? "text-white" : i < active ? "text-primary" : "text-muted-foreground"}`} />
-            </div>
-            <span className={`text-xs font-medium transition-colors ${i === active ? "text-foreground" : "text-muted-foreground"}`}>
-              {s.label}
-            </span>
-            {/* Progress bar under active step */}
-            <div className="w-full h-0.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-100 bg-gradient-to-r ${s.color}`}
-                style={{ width: i === active ? `${progress}%` : i < active ? "100%" : "0%" }}
-              />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Active step content */}
-      <div className="relative">
-        <div
-          className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm overflow-hidden"
-          style={{ height: 260 }}
-        >
-          {/* Header bar */}
-          <div className={`px-5 py-3 bg-gradient-to-r ${step.color} flex items-center gap-3`}>
-            <step.icon className="h-4 w-4 text-white" />
-            <span className="text-sm font-semibold text-white">{step.demo.title}</span>
-            <div className="ml-auto flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-white/30" />
-              <div className="w-2 h-2 rounded-full bg-white/30" />
-              <div className="w-2 h-2 rounded-full bg-white/60" />
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">{step.desc}</p>
-            <div className="space-y-3">
-              {step.demo.lines.map((line, li) => (
-                <div
-                  key={line.k}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/30"
-                >
-                  <span className="text-xs text-muted-foreground">{line.k}</span>
-                  <span className="text-sm font-medium">{line.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Connector lines between steps (decorative) */}
-        <div className="absolute -z-10 top-1/2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-      </div>
-    </div>
-  );
-}
-
-/* ─── Chat Preview ─── */
-function ChatPreview() {
-  const [msgs, setMsgs] = useState<Array<{ role: string; text: string; widget?: boolean }>>([]);
-  const [typing, setTyping] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const DEMO_CONVERSATION = [
-    { role: "user", text: "Hai, ada menu apa aja?" },
-    { role: "assistant", text: "Ini dia produk kami! 👇", widget: true },
-    { role: "user", text: "Risol mayo berapa?" },
-    { role: "assistant", text: "Risol Mayo harganya Rp5.000/pcs. Beli 10 cuma Rp45.000 — hemat 10%! Mau pesan berapa?" },
-  ];
-
-  // Auto-scroll to bottom when messages or typing changes
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    }
-  }, [msgs, typing]);
-
-  useEffect(() => {
-    let i = 0;
-    const addMsg = () => {
-      if (i >= DEMO_CONVERSATION.length) {
-        setTimeout(() => { setMsgs([]); i = 0; addMsg(); }, 3000);
-        return;
-      }
-      const msg = DEMO_CONVERSATION[i];
-      if (msg.role === "assistant") setTyping(true);
-      setTimeout(() => {
-        setTyping(false);
-        setMsgs((prev) => [...prev, msg]);
-        i++;
-        setTimeout(addMsg, msg.role === "user" ? 800 : 1500);
-      }, msg.role === "assistant" ? 1200 : 300);
-    };
-    const t = setTimeout(addMsg, 1000);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="w-full max-w-sm mx-auto rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm overflow-hidden shadow-2xl shadow-primary/5">
-      {/* Chat header */}
-      <div className="px-4 py-3 border-b border-border/50 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center">
-          <Bot className="h-4 w-4 text-primary-foreground" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold">CS Toko Risol</p>
-          <p className="text-[10px] text-emerald-500 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Online
-          </p>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div ref={scrollRef} className="p-4 space-y-3 h-[300px] overflow-y-auto">
-        {msgs.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-in`}>
-            <div className={`
-              max-w-[80%] px-3 py-2 rounded-2xl text-sm
-              ${m.role === "user"
-                ? "bg-primary text-primary-foreground rounded-br-md"
-                : "bg-muted rounded-bl-md"
-              }
-            `}>
-              {m.text}
-              {m.widget && (
-                <div className="mt-2 p-2 rounded-lg bg-background/50 border border-border/50 space-y-1">
-                  {["Risol Mayo — Rp5.000", "Risol Ayam — Rp6.000", "Risol Keju — Rp7.000"].map((item) => (
-                    <div key={item} className="text-xs py-1 px-2 rounded bg-muted/50 flex items-center gap-1.5">
-                      <Check className="h-3 w-3 text-emerald-500 shrink-0" />
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {typing && (
-          <div className="flex justify-start animate-in">
-            <div className="bg-muted px-4 py-2 rounded-2xl rounded-bl-md flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: "300ms" }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input bar */}
-      <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2">
-        <div className="flex-1 px-3 py-2 rounded-full bg-muted text-xs text-muted-foreground">Ketik pesan...</div>
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-          <Send className="h-3.5 w-3.5 text-primary-foreground" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Features Section ─── */
 const FEATURES = [
   {
     icon: Bot,
@@ -321,18 +59,41 @@ const FEATURES = [
   },
 ];
 
-/* ─── Stats ─── */
 const STATS = [
   { value: "< 2 dtk", label: "Rata-rata respons" },
   { value: "24/7", label: "Layanan non-stop" },
   { value: "99.9%", label: "Uptime" },
-  { value: "∞", label: "Skalabilitas" },
+  { value: "\u221E", label: "Skalabilitas" },
 ];
 
-/* ─── Main Landing Page ─── */
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "GenAM Studio",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Platform AI Agent untuk UMKM Indonesia — buat chatbot AI yang paham produk kamu, tampilkan katalog visual interaktif, dan layani pelanggan 24/7 tanpa coding.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "IDR",
+    description: "Mulai gratis, tanpa kartu kredit",
+  },
+  author: {
+    "@type": "Person",
+    name: "Ade Saputra",
+  },
+};
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -366,7 +127,7 @@ export default function LandingPage() {
             <Badge variant="outline" className="mb-4 text-xs font-medium px-3 py-1 border-primary/30 text-primary">
               <Sparkles className="h-3 w-3 mr-1.5" /> Platform AI Agent untuk UMKM Indonesia
             </Badge>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-5 leading-[1.1]">
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-5 leading-[1.1]">
               Bangun AI Agent
               <br />
               <span className="bg-gradient-to-r from-primary via-amber-500 to-primary bg-clip-text text-transparent">
@@ -377,7 +138,7 @@ export default function LandingPage() {
               Buat chatbot AI yang paham produk kamu, tampilkan katalog visual interaktif,
               dan layani pelanggan 24/7 — tanpa coding.
             </p>
-            <div className="flex items-center justify-center gap-3 mt-8">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
               <Button variant="ghost" size="lg" asChild className="h-11 px-6 bg-primary/10 text-primary/100 hover:bg-primary/20 hover:text-primary animate-glow font-bold">
                 <Link href="/register">
                   Mulai Gratis <ArrowRight className="ml-2 h-4 w-4" />
@@ -420,7 +181,7 @@ export default function LandingPage() {
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2.5 text-sm">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Check className="h-3 w-3 text-emerald-500" />
+                      <svg className="h-3 w-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                     </div>
                     {item}
                   </div>
@@ -543,7 +304,7 @@ export default function LandingPage() {
             <span className="text-sm font-medium">GenAM Studio</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Dibuat oleh <span className="font-medium text-foreground">Ade Saputra</span> · © {new Date().getFullYear()} GenAM Studio
+            Dibuat oleh <span className="font-medium text-foreground">Ade Saputra</span>
           </p>
         </div>
       </footer>

@@ -8,6 +8,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -231,8 +232,7 @@ export default function TokenLimitsPage() {
             </div>
             <div className="space-y-2">
               <Label>Limit Token Bulanan</Label>
-              <Input
-                type="number"
+              <NumberInput
                 placeholder="1000000"
                 value={form.monthly_token_limit}
                 onChange={(e) => setForm((f) => ({ ...f, monthly_token_limit: e.target.value }))}
@@ -258,8 +258,7 @@ export default function TokenLimitsPage() {
             </div>
             <div className="space-y-2">
               <Label>Peringatan di (%)</Label>
-              <Input
-                type="number"
+              <NumberInput
                 min="1"
                 max="100"
                 value={form.alert_threshold_pct}

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get('days') || '30');
 
@@ -16,13 +16,13 @@ export async function GET(request: Request) {
       supabase
         .from('cost_entries')
         .select('*, agents(name)')
-        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
         .gte('created_at', since.toISOString())
         .order('created_at', { ascending: true }),
       supabase
         .from('token_limits')
         .select('*, agents(name)')
-        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
         .eq('is_active', true),
     ]);
 
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     let totalRequests = 0;
 
     for (const e of entries) {
-      const day = e.created_at?.split('T')[0] || '';
+      const day = e.created_at ? new Date(e.created_at).toISOString().split('T')[0] : '';
       const tp = e.tokens_prompt || 0;
       const tc = e.tokens_completion || 0;
 
@@ -71,9 +71,22 @@ export async function GET(request: Request) {
       }
     }
 
-    const dailyData = Object.entries(byDay)
-      .map(([date, v]) => ({ date, ...v }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // Fill all dates in range (so chart shows continuous axis, not just days with data)
+    const dailyData: Array<{ date: string; tokensPrompt: number; tokensCompletion: number; cost: number; requests: number }> = [];
+    const sinceDate = since.toISOString().split('T')[0];
+    const todayDate = new Date().toISOString().split('T')[0];
+    let cursorDate = sinceDate;
+
+    while (cursorDate <= todayDate) {
+      dailyData.push(byDay[cursorDate]
+        ? { date: cursorDate, ...byDay[cursorDate] }
+        : { date: cursorDate, tokensPrompt: 0, tokensCompletion: 0, cost: 0, requests: 0 }
+      );
+      // Advance by 1 day using UTC
+      const next = new Date(cursorDate + 'T00:00:00Z');
+      next.setUTCDate(next.getUTCDate() + 1);
+      cursorDate = next.toISOString().split('T')[0];
+    }
 
     const agentData = Object.entries(byAgent)
       .map(([id, v]) => ({ id, ...v, total: v.tokensPrompt + v.tokensCompletion }))
@@ -84,7 +97,7 @@ export async function GET(request: Request) {
       .sort((a, b) => b.total - a.total);
 
     // Workspace-level limit (agent_id is null)
-    const workspaceLimit = limits.find((l: any) => !l.agent_id);
+    const businessLimit = limits.find((l: any) => !l.agent_id);
 
     // chartData for dashboard TelemetryCharts compatibility
     const chartData = dailyData.map(d => ({
@@ -103,12 +116,12 @@ export async function GET(request: Request) {
       totalCompletion,
       totalTokens: totalPrompt + totalCompletion,
       totalRequests,
-      workspaceLimit: workspaceLimit ? {
-        id: workspaceLimit.id,
-        name: workspaceLimit.name,
-        limit: workspaceLimit.monthly_token_limit,
-        used: workspaceLimit.current_tokens_used,
-        alertPct: workspaceLimit.alert_threshold_pct,
+      workspaceLimit: businessLimit ? {
+        id: businessLimit.id,
+        name: businessLimit.name,
+        limit: businessLimit.monthly_token_limit,
+        used: businessLimit.current_tokens_used,
+        alertPct: businessLimit.alert_threshold_pct,
       } : null,
       limits: limits.map((l: any) => ({
         id: l.id,

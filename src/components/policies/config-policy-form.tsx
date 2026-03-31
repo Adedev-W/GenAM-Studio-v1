@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -88,7 +89,7 @@ export default function ConfigPolicyForm() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Input id="priority" type="number" defaultValue="100" />
+                <NumberInput id="priority" defaultValue="100" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="scope">Scope</Label>
@@ -148,11 +149,11 @@ export default function ConfigPolicyForm() {
                         </div>
                         <div className="space-y-2">
                             <Label>Threshold</Label>
-                            <Input type="number" placeholder="80" />
+                            <NumberInput placeholder="80" />
                         </div>
                          <div className="space-y-2">
                             <Label>Time Window (s)</Label>
-                            <Input type="number" placeholder="300" />
+                            <NumberInput placeholder="300" />
                         </div>
                          <div className="space-y-2">
                             <Label>Aggregation</Label>
@@ -222,7 +223,7 @@ export default function ConfigPolicyForm() {
               </div>
               <div className="space-y-2">
                  <Label>Interval (seconds)</Label>
-                 <Input type="number" defaultValue="10" />
+                 <NumberInput defaultValue="10" />
               </div>
               <div className="flex items-center space-x-2 md:col-span-2">
                 <Switch id="realtime-eval" />
@@ -273,7 +274,7 @@ export default function ConfigPolicyForm() {
                         </div>
                         <div className="space-y-2">
                             <Label>Scale Count</Label>
-                            <Input type="number" defaultValue="1" placeholder="Only if action is 'scale'"/>
+                            <NumberInput defaultValue="1" placeholder="Only if action is 'scale'"/>
                         </div>
                     </div>
                   </CardContent>
@@ -295,11 +296,11 @@ export default function ConfigPolicyForm() {
             <AccordionContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Cooldown (seconds)</Label>
-                <Input type="number" defaultValue="60" />
+                <NumberInput defaultValue="60" />
               </div>
               <div className="space-y-2">
                 <Label>Max Triggers per Hour</Label>
-                <Input type="number" defaultValue="10" />
+                <NumberInput defaultValue="10" />
               </div>
               <div className="flex items-center space-x-2">
                 <Switch id="require-approval" />

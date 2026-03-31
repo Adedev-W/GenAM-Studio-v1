@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { data, error } = await supabase
       .from('canvas_layouts')
       .select('*')
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .order('updated_at', { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data);
@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const { workspaceId, userId } = await getWorkspaceContext(supabase);
+    const { businessId, userId } = await getBusinessContext(supabase);
     const body = await request.json();
     const { elements, ...rest } = body;
     const { data, error } = await supabase
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       .insert({
         ...rest,
         layout_json: { elements: elements || [] },
-        workspace_id: workspaceId,
+        business_id: businessId,
         created_by: userId,
       })
       .select()

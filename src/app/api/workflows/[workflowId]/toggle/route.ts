@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 export async function POST(_: Request, { params }: { params: Promise<{ workflowId: string }> }) {
   try {
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
     const { workflowId } = await params;
 
     // Get current state
@@ -13,7 +13,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ workflowI
       .from('workflows')
       .select('is_active')
       .eq('id', workflowId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (fetchErr || !current) {
@@ -24,7 +24,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ workflowI
       .from('workflows')
       .update({ is_active: !current.is_active, updated_at: new Date().toISOString() })
       .eq('id', workflowId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .select()
       .single();
 

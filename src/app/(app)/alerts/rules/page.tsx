@@ -5,6 +5,7 @@ import { Plus, Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -160,8 +161,46 @@ export default function AlertRulesPage() {
           </Button>
         </EmptyState>
       ) : (
-        <Card className="border-border/50">
-          <CardContent className="p-0">
+        <>
+        {/* Mobile card view */}
+        <div className="space-y-3 md:hidden">
+          {rules.map((rule) => (
+            <Card key={rule.id} className="border-border/50">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm">{rule.name}</span>
+                  <Switch checked={rule.is_active} onCheckedChange={() => toggleActive(rule.id)} />
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-light">Metric</span>
+                    <span>{metricLabels[rule.metric] || rule.metric}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-light">Condition</span>
+                    <code className="font-mono bg-muted/50 px-2 py-0.5 rounded">{rule.operator} {rule.threshold}</code>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-light">Severity</span>
+                    <StatusBadge status={rule.severity} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-light">Agent</span>
+                    <span>{rule.agent}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-light">Channels</span>
+                    <span>{rule.channels.join(", ")}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Desktop table view */}
+        <Card className="border-border/50 hidden md:block">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -205,6 +244,7 @@ export default function AlertRulesPage() {
             </Table>
           </CardContent>
         </Card>
+        </>
       )}
 
       <Dialog open={createOpen} onOpenChange={(open) => { if (!open) { setCreateOpen(false); resetForm(); } }}>
@@ -221,7 +261,7 @@ export default function AlertRulesPage() {
               <Input placeholder="e.g., High Error Rate" value={formName} onChange={(e) => setFormName(e.target.value)} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="font-medium text-sm">Metric</Label>
                 <Select value={formMetric} onValueChange={setFormMetric}>
@@ -246,7 +286,7 @@ export default function AlertRulesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="font-medium text-sm">Operator</Label>
                 <Select value={formOperator} onValueChange={setFormOperator}>
@@ -260,7 +300,7 @@ export default function AlertRulesPage() {
               </div>
               <div className="space-y-2">
                 <Label className="font-medium text-sm">Threshold</Label>
-                <Input type="number" placeholder="e.g., 5" value={formThreshold} onChange={(e) => setFormThreshold(e.target.value)} />
+                <NumberInput placeholder="e.g., 5" value={formThreshold} onChange={(e) => setFormThreshold(e.target.value)} />
               </div>
             </div>
 

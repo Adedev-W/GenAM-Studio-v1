@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /c/
+Disallow: /app/
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://genam.studio/sitemap.xml

@@ -14,11 +14,19 @@ interface Widget {
   props: Record<string, any>;
 }
 
+interface SuggestedAction {
+  label: string;
+  value?: string;
+  type?: 'reply' | 'order' | 'link';
+  url?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   widgets?: Widget[];
+  suggested_actions?: SuggestedAction[];
   streaming?: boolean;
 }
 
@@ -47,7 +55,7 @@ function TypingDots() {
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ message, onWidgetAction }: { message: ChatMessage; onWidgetAction?: (action: WidgetAction) => void }) {
+function MessageBubble({ message, onWidgetAction, onSuggestedAction, isLastAssistant }: { message: ChatMessage; onWidgetAction?: (action: WidgetAction) => void; onSuggestedAction?: (action: SuggestedAction) => void; isLastAssistant?: boolean }) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const isWidgetAction = isUser && message.content.startsWith("[Pengguna");
@@ -138,6 +146,32 @@ function MessageBubble({ message, onWidgetAction }: { message: ChatMessage; onWi
                   <WidgetPreview type={widget.type} props={widget.props} onAction={onWidgetAction} />
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+
+        {/* Suggested Actions — only show on last assistant message */}
+        {isLastAssistant && !message.streaming && message.suggested_actions && message.suggested_actions.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-1">
+            {message.suggested_actions.map((action, i) => (
+              <button
+                key={i}
+                onClick={() => onSuggestedAction?.(action)}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-full transition-colors"
+                style={{
+                  border: "1px solid hsl(var(--border))",
+                  background: "hsl(var(--background))",
+                  color: "hsl(var(--foreground))",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "hsl(var(--muted))";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "hsl(var(--background))";
+                }}
+              >
+                {action.label}
+              </button>
             ))}
           </div>
         )}
@@ -281,6 +315,7 @@ function ChatUI({
                 role: m.role as "user" | "assistant",
                 content: m.content || "",
                 widgets: m.widgets || [],
+                suggested_actions: m.suggested_actions || [],
               }));
               setConversationId(storedConvId);
               setMessages(session.welcome_message ? [welcomeMsg, ...restored] : restored);
@@ -327,6 +362,20 @@ function ChatUI({
               id: `status-${Date.now()}`,
               role: "system",
               content: data.message,
+            },
+          ]);
+        }
+      })
+      .on("broadcast", { event: "new_message" }, (payload) => {
+        const msg = payload.payload as { id: string; role: string; content: string; widgets?: any[] };
+        if (msg?.content) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: msg.id,
+              role: "assistant" as const,
+              content: msg.content,
+              widgets: msg.widgets || [],
             },
           ]);
         }
@@ -455,6 +504,7 @@ function ChatUI({
                       id: finalMsg?.id || streamingId,
                       content: finalMsg?.content ?? m.content,
                       widgets: finalMsg?.widgets || [],
+                      suggested_actions: finalMsg?.suggested_actions || [],
                       streaming: false,
                     }
                   : m
@@ -495,12 +545,49 @@ function ChatUI({
 
   const handleWidgetAction = useCallback((action: WidgetAction) => {
     if (isStreaming) return;
+
+    // Structured button actions
+    if (action.type === "button_click" && action.value && typeof action.value === "object") {
+      const btnAction = action.value as { type: string; payload?: string };
+      if (btnAction.type === "link" && btnAction.payload) {
+        window.open(btnAction.payload, '_blank');
+        return;
+      }
+      if (btnAction.type === "contact" && btnAction.payload) {
+        window.open(`https://wa.me/${btnAction.payload}`, '_blank');
+        return;
+      }
+      if (btnAction.type === "order") {
+        sendMessage(`[Pengguna mengklik: ${action.label}]`);
+        return;
+      }
+      if (btnAction.type === "message" && btnAction.payload) {
+        sendMessage(btnAction.payload);
+        return;
+      }
+    }
+
+    // Fallback: existing behavior
     const msg = action.type === "button_click"
       ? `[Pengguna mengklik: ${action.label}]`
       : action.type === "select_change"
         ? `[Pengguna memilih: ${action.label} = ${action.value}]`
         : `[Pengguna mengubah toggle: ${action.label} = ${action.value ? "aktif" : "nonaktif"}]`;
     sendMessage(msg);
+  }, [isStreaming, sendMessage]);
+
+  const handleSuggestedAction = useCallback((action: SuggestedAction) => {
+    if (isStreaming) return;
+    if (action.type === "link" && action.url) {
+      window.open(action.url, '_blank');
+      return;
+    }
+    if (action.type === "order") {
+      sendMessage("Saya mau pesan");
+      return;
+    }
+    // Default: send value or label as message
+    sendMessage(action.value || action.label);
   }, [isStreaming, sendMessage]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -579,9 +666,18 @@ function ChatUI({
             <p className="text-sm font-light">Mulai percakapan dengan mengirim pesan</p>
           </div>
         )}
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} onWidgetAction={isStreaming ? undefined : handleWidgetAction} />
-        ))}
+        {messages.map((msg, idx) => {
+          const isLastAssistant = !isStreaming && msg.role === "assistant" && !messages.slice(idx + 1).some(m => m.role === "assistant");
+          return (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              onWidgetAction={isStreaming ? undefined : handleWidgetAction}
+              onSuggestedAction={isStreaming ? undefined : handleSuggestedAction}
+              isLastAssistant={isLastAssistant}
+            />
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 

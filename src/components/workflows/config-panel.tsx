@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -94,7 +95,7 @@ function TriggerConfig({ type, config, onChange }: { type: string; config: any; 
       </div>
 
       {type === "order_status_changed" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-xs">Dari Status</Label>
             <Select value={config?.from_status || ""} onValueChange={v => onChange("trigger_config", { ...config, from_status: v })}>
@@ -141,7 +142,7 @@ function TriggerConfig({ type, config, onChange }: { type: string; config: any; 
       )}
 
       {type === "schedule" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label className="text-xs">Frekuensi</Label>
             <Select value={config?.frequency || "daily"} onValueChange={v => onChange("trigger_config", { ...config, frequency: v })}>
@@ -166,8 +167,7 @@ function TriggerConfig({ type, config, onChange }: { type: string; config: any; 
       {type === "token_limit" && (
         <div className="space-y-2">
           <Label className="text-xs">Threshold (%)</Label>
-          <Input
-            type="number"
+          <NumberInput
             min={1}
             max={100}
             placeholder="80"
@@ -201,7 +201,7 @@ function ConditionConfig({ field, operator, value, onChange }: {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label className="text-xs">Operator</Label>
           <Select value={operator || ""} onValueChange={v => onChange("condition_operator", v)}>

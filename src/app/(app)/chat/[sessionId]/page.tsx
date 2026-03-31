@@ -18,12 +18,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { WidgetPreview, type WidgetAction } from "@/components/widgets/widget-preview";
 import { createClient } from "@/lib/supabase/client";
+import { useApiError } from "@/hooks/use-api-error";
+import { ErrorAlert } from "@/components/common/error-alert";
+import { apiFetch } from "@/lib/api";
+
+interface SuggestedAction {
+  label: string;
+  value?: string;
+  type?: 'reply' | 'order' | 'link';
+  url?: string;
+}
 
 interface Message {
   id?: string;
   role: 'user' | 'assistant';
   content: string;
   widgets?: any[];
+  suggested_actions?: SuggestedAction[];
   streaming?: boolean;
 }
 
@@ -123,6 +134,7 @@ function ChatPreview({ sessionId, welcomeMessage }: { sessionId: string; welcome
                   role: 'assistant',
                   content: parsed.message?.content || next[next.length - 1].content,
                   widgets: parsed.message?.widgets || [],
+                  suggested_actions: parsed.message?.suggested_actions || [],
                   streaming: false,
                 };
                 return next;
@@ -145,12 +157,39 @@ function ChatPreview({ sessionId, welcomeMessage }: { sessionId: string; welcome
 
   function handleWidgetAction(action: WidgetAction) {
     if (sending) return;
+
+    // Structured button actions
+    if (action.type === "button_click" && action.value && typeof action.value === "object") {
+      const btnAction = action.value as { type: string; payload?: string };
+      if (btnAction.type === "link" && btnAction.payload) {
+        window.open(btnAction.payload, '_blank');
+        return;
+      }
+      if (btnAction.type === "contact" && btnAction.payload) {
+        window.open(`https://wa.me/${btnAction.payload}`, '_blank');
+        return;
+      }
+      if (btnAction.type === "message" && btnAction.payload) {
+        sendMessage(btnAction.payload);
+        return;
+      }
+    }
+
     const msg = action.type === "button_click"
       ? `[Pengguna mengklik: ${action.label}]`
       : action.type === "select_change"
         ? `[Pengguna memilih: ${action.label} = ${action.value}]`
         : `[Pengguna mengubah toggle: ${action.label} = ${action.value ? "aktif" : "nonaktif"}]`;
     sendMessage(msg);
+  }
+
+  function handleSuggestedAction(action: SuggestedAction) {
+    if (sending) return;
+    if (action.type === "link" && action.url) {
+      window.open(action.url, '_blank');
+      return;
+    }
+    sendMessage(action.value || action.label);
   }
 
   return (
@@ -213,6 +252,20 @@ function ChatPreview({ sessionId, welcomeMessage }: { sessionId: string; welcome
                   ))}
                 </div>
               )}
+              {/* Suggested Actions — only on last assistant message */}
+              {!sending && !msg.streaming && msg.role === 'assistant' && i === messages.length - 1 && msg.suggested_actions && msg.suggested_actions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {msg.suggested_actions.map((sa, si) => (
+                    <button
+                      key={si}
+                      onClick={() => handleSuggestedAction(sa)}
+                      className="px-3 py-1 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted transition-colors"
+                    >
+                      {sa.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -252,11 +305,13 @@ export default function ChatSessionPage() {
   const [savedSettings, setSavedSettings] = useState(false);
   const [settings, setSettings] = useState<any>({});
   const [previewKey, setPreviewKey] = useState(0);
+  const [mobileTab, setMobileTab] = useState<'chat' | 'settings'>('chat');
+  const { error: apiError, handleError, clearError } = useApiError();
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/chat-sessions/${sessionId}`).then(r => r.json()),
-      fetch('/api/agents').then(r => r.json()),
+      apiFetch(`/api/chat-sessions/${sessionId}`),
+      apiFetch('/api/agents'),
     ]).then(([s, a]) => {
       if (!s.error) {
         setSession(s);
@@ -271,22 +326,23 @@ export default function ChatSessionPage() {
         });
       }
       setAgents(Array.isArray(a) ? a : []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [sessionId]);
+    }).catch(handleError).finally(() => setLoading(false));
+  }, [sessionId, handleError]);
 
   async function saveSettings() {
     setSavingSettings(true);
-    const res = await fetch(`/api/chat-sessions/${sessionId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    });
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await apiFetch(`/api/chat-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
       setSession(data);
       setSavedSettings(true);
       setPreviewKey(k => k + 1);
       setTimeout(() => setSavedSettings(false), 2000);
+    } catch (err) {
+      handleError(err);
     }
     setSavingSettings(false);
   }
@@ -308,42 +364,60 @@ export default function ChatSessionPage() {
   const selectedAgent = agents.find(a => a.id === (settings.agent_id || session?.agent_id));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] gap-0">
+    <div className="flex flex-col h-[calc(100dvh-2rem)] gap-0">
       {/* Top bar */}
-      <div className="flex items-center gap-3 pb-3 border-b border-border/50 mb-4 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 pb-3 border-b border-border/50 mb-4 shrink-0">
         <Link href="/chat">
           <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-sm font-semibold truncate">{session?.name || 'Chat Session'}</h1>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {session?.is_public
-              ? <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-500 border-emerald-500/20 h-4 px-1.5"><Globe className="mr-1 h-2.5 w-2.5" />Public</Badge>
-              : <Badge variant="outline" className="text-xs h-4 px-1.5"><Lock className="mr-1 h-2.5 w-2.5" />Private</Badge>}
+              ? <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-500 border-emerald-500/20 h-4 px-1.5"><Globe className="mr-1 h-2.5 w-2.5" /><span className="hidden sm:inline">Public</span></Badge>
+              : <Badge variant="outline" className="text-xs h-4 px-1.5"><Lock className="mr-1 h-2.5 w-2.5" /><span className="hidden sm:inline">Private</span></Badge>}
             {session?.allow_multi_user
-              ? <Badge variant="outline" className="text-xs h-4 px-1.5"><Users className="mr-1 h-2.5 w-2.5" />Multi-user</Badge>
-              : <Badge variant="outline" className="text-xs h-4 px-1.5"><User className="mr-1 h-2.5 w-2.5" />Single-user</Badge>}
+              ? <Badge variant="outline" className="text-xs h-4 px-1.5 hidden sm:inline-flex"><Users className="mr-1 h-2.5 w-2.5" />Multi-user</Badge>
+              : <Badge variant="outline" className="text-xs h-4 px-1.5 hidden sm:inline-flex"><User className="mr-1 h-2.5 w-2.5" />Single-user</Badge>}
             {selectedAgent && (
-              <Badge variant="outline" className="text-xs h-4 px-1.5 bg-primary/5 border-primary/20 text-primary">
+              <Badge variant="outline" className="text-xs h-4 px-1.5 bg-primary/5 border-primary/20 text-primary hidden sm:inline-flex">
                 <Bot className="mr-1 h-2.5 w-2.5" />{selectedAgent.name}
               </Badge>
             )}
           </div>
         </div>
         <Button variant="outline" size="sm" className="h-8" onClick={copyLink}>
-          {copied ? <CheckCircle className="mr-1.5 h-3.5 w-3.5 text-emerald-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-          {copied ? 'Copied!' : 'Share Link'}
+          {copied ? <CheckCircle className="h-3.5 w-3.5 sm:mr-1.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 sm:mr-1.5" />}
+          <span className="hidden sm:inline">{copied ? 'Copied!' : 'Share Link'}</span>
         </Button>
         <Button variant="outline" size="sm" className="h-8" asChild>
           <a href={shareUrl} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Preview
+            <ExternalLink className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Preview</span>
           </a>
         </Button>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
+      {apiError && <ErrorAlert error={apiError} onDismiss={clearError} className="mb-4" />}
+
+      {/* Mobile tab toggle */}
+      <div className="flex gap-1 p-1 bg-muted/30 rounded-lg mb-3 lg:hidden shrink-0">
+        <button
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${mobileTab === 'chat' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Chat Preview
+        </button>
+        <button
+          onClick={() => setMobileTab('settings')}
+          className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${mobileTab === 'settings' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <Settings2 className="h-3.5 w-3.5 inline mr-1" />Settings
+        </button>
+      </div>
+
+      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-4 flex-1 overflow-hidden min-h-0">
         {/* Custom chat preview */}
-        <div className="col-span-8 overflow-hidden">
+        <div className={`lg:col-span-8 overflow-hidden flex-1 lg:flex-initial min-h-[300px] lg:min-h-0 ${mobileTab !== 'chat' ? 'hidden lg:block' : ''}`}>
           {session?.agent_id ? (
             <ChatPreview
               key={previewKey}
@@ -364,7 +438,7 @@ export default function ChatSessionPage() {
         </div>
 
         {/* Settings panel */}
-        <div className="col-span-4 overflow-y-auto space-y-4">
+        <div className={`lg:col-span-4 overflow-y-auto space-y-4 ${mobileTab !== 'settings' ? 'hidden lg:block' : ''}`}>
           <Card className="border-border/50">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">

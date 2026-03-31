@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWorkspaceContext } from '@/lib/queries/helpers';
+import { getBusinessContext } from '@/lib/queries/helpers';
 
 const BUCKET = 'agent-media';
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -13,14 +13,14 @@ export async function POST(
   try {
     const { agentId } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
-    // Verify agent belongs to this workspace
+    // Verify agent belongs to this business
     const { data: agent } = await supabase
       .from('agents')
       .select('id')
       .eq('id', agentId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -38,7 +38,7 @@ export async function POST(
 
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
-    const path = `${workspaceId}/${agentId}/${Date.now()}-${safeName}`;
+    const path = `${businessId}/${agentId}/${Date.now()}-${safeName}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -68,14 +68,14 @@ export async function DELETE(
   try {
     const { agentId } = await params;
     const supabase = await createClient();
-    const { workspaceId } = await getWorkspaceContext(supabase);
+    const { businessId } = await getBusinessContext(supabase);
 
-    // Verify agent belongs to this workspace
+    // Verify agent belongs to this business
     const { data: agent } = await supabase
       .from('agents')
       .select('id')
       .eq('id', agentId)
-      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
       .single();
 
     if (!agent) return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -85,8 +85,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Path is required' }, { status: 400 });
     }
 
-    // Security: ensure path belongs to this workspace
-    if (!path.startsWith(`${workspaceId}/`)) {
+    // Security: ensure path belongs to this business
+    if (!path.startsWith(`${businessId}/`)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

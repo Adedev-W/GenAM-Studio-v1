@@ -63,7 +63,10 @@ export function WidgetPreview({ type, props: rawProps, onAction }: { type: strin
       const sizeClass: Record<string, string> = { sm: "text-xs px-3 py-1.5", default: "text-sm px-4 py-2", lg: "text-base px-6 py-3" };
       return (
         <button
-          onClick={() => onAction?.({ type: "button_click", label: props.text, value: props.value })}
+          onClick={() => {
+            const action = props.action || { type: "message", payload: props.text };
+            onAction?.({ type: "button_click", label: props.text, value: action });
+          }}
           className={`inline-flex items-center gap-2 rounded-md font-medium transition-colors ${variantClass[props.variant] || variantClass.default} ${sizeClass[props.size] || sizeClass.default} ${onAction ? "cursor-pointer" : "cursor-default"}`}
         >
           {props.text}

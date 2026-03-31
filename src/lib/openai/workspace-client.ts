@@ -1,37 +1,37 @@
 import OpenAI from 'openai';
 import { createClient } from '@/lib/supabase/server';
 
-export interface WorkspaceOpenAIClient {
+export interface BusinessOpenAIClient {
   client: OpenAI;
-  workspaceId: string;
+  businessId: string;
 }
 
-export async function getWorkspaceOpenAIClient(): Promise<WorkspaceOpenAIClient> {
+export async function getBusinessOpenAIClient(): Promise<BusinessOpenAIClient> {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) throw new Error('Unauthorized');
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('workspace_id')
+    .select('active_business_id')
     .eq('id', user.id)
     .single();
 
-  if (!profile) throw new Error('No workspace found');
+  if (!profile?.active_business_id) throw new Error('No business found');
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
+  const { data: business } = await supabase
+    .from('businesses')
     .select('settings')
-    .eq('id', profile.workspace_id)
+    .eq('id', profile.active_business_id)
     .single();
 
-  const apiKey = workspace?.settings?.openai_api_key;
+  const apiKey = business?.settings?.openai_api_key;
   if (!apiKey) {
     throw new Error('OpenAI API key not configured. Please add your API key in Settings → API Keys.');
   }
 
   return {
     client: new OpenAI({ apiKey }),
-    workspaceId: profile.workspace_id,
+    businessId: profile.active_business_id,
   };
 }
